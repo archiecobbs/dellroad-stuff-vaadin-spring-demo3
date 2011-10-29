@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="http://ivyrep.jayasoft.org/ivy-doc.xsl"?>
+
+<!-- $Id$ -->
+<ivy-module version="1.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="http://ant.apache.org/ivy/schemas/ivy.xsd">
+
+    <info organisation="com.example" module="hello">
+        <license name="Commercial"/>
+        <description homepage="http://www.example.com/">
+            Vaadin+Spring Example #3
+        </description>
+    </info>
+
+    <configurations>
+        <conf name="build" description="JARs required at build time"/>
+        <conf name="runtime" description="JARs required at runtime"/>
+        <conf name="aspects" description="JARs containing aspects"/>
+    </configurations>
+
+    <publications>
+        <artifact/>
+        <artifact name="javadoc" type="javadoc" ext="zip"/>
+    </publications>
+
+    <dependencies>
+        <dependency force="true" org="org.apache.log4j" name="log4j" rev="1.2.15" conf="build,runtime->default"/>
+        <dependency force="true" org="org.springframework" name="spring" rev="3.0+"
+          conf="build,runtime->asm,aspects,cglib,context-support,expression,orm,web-servlet"/>
+        <dependency force="true" org="com.vaadin" name="vaadin" rev="6.7.1" conf="build,runtime->default"/>
+        <dependency force="true" org="javax.servlet" name="servletapi" rev="3.0" conf="build->default"/>
+        <dependency force="true" org="org.dellroad" name="dellroad-stuff" rev="1.0.173" conf="build,aspects,runtime->default"/>
+        <dependency force="true" org="org.aspectj" name="aspectj" rev="1.6.10" conf="build->tools;aspects,runtime->default"/>
+    </dependencies>
+
+</ivy-module>

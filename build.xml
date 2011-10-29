@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<!-- $Id$ -->
+<project name="demo3" default="build"
+  xmlns:ivy="urn:org.apache.ivy.ant"
+  xmlns:dellroad="urn:org.dellroad.ant"
+  xmlns:antcontrib="urn:net.sf.antcontrib">
+
+<!-- Configure build and import macros -->
+
+    <property name="javac.compiler.flags" value="-Xlint:all,-serial,-fallthrough"/>
+    <import file="src/build/macros.xml"/>
+
+<!-- Define classpaths -->
+
+    <target name="build.classpath" unless="build.classpath.resolved">
+        <dellroad:ivypath pathid="build.classpath" conf="build"/>
+        <property name="build.classpath.resolved" value="true"/>
+    </target>
+
+    <target name="javac.classpath" unless="javac.classpath.resolved">
+        <dellroad:ivypath pathid="javac.classpath" conf="build"/>
+        <property name="javac.classpath.resolved" value="true"/>
+    </target>
+
+    <target name="aspects.classpath" unless="aspects.classpath.resolved">
+        <dellroad:ivypath pathid="aspects.classpath" conf="aspects"/>
+        <property name="aspects.classpath.resolved" value="true"/>
+    </target>
+
+    <target name="runtime.classpath" unless="runtime.classpath.resolved">
+        <dellroad:ivypath pathid="runtime.classpath" conf="runtime"/>
+        <property name="runtime.classpath.resolved" value="true"/>
+    </target>
+
+<!-- Define targets -->
+
+    <target name="war" depends="javac, weave, runtime.classpath">
+        <delete dir="build/war"/>
+
+        <!-- Install misc web files -->
+        <copy todir="build/war">
+            <fileset dir="src" includes="WEB-INF/**/*"/>
+        </copy>
+        <copy todir="build/war/src">
+            <fileset dir="." includes="build.xml src/**/*"/>
+        </copy>
+
+        <!-- Install compiled Java classes and other resource files -->
+        <mkdir dir="build/war/WEB-INF/classes"/>
+        <copy todir="build/war/WEB-INF/classes">
+            <fileset dir="build/classes" includes="**/*"/>
+            <fileset dir="src/xml" includes="log4j.xml"/>
+            <fileset dir="src/properties" includes="logging.properties"/>
+        </copy>
+
+        <!-- Install required library JARs -->
+        <mkdir dir="build/war/WEB-INF/lib"/>
+        <dellroad:ivyput pattern="build/war/WEB-INF/lib/[module]-[revision]-[artifact].[ext]" conf="runtime"/>
+
+        <!-- Extract vaadin static files -->
+        <unzip dest="build/war">
+            <fileset dir="build/war/WEB-INF/lib" includes="vaadin-*-vaadin.jar"/>
+            <patternset includes="VAADIN/**/*"/>
+        </unzip>
+
+        <!-- Build WAR -->
+        <war destfile="build/${ant.project.name}.war" basedir="build/war"/>
+    </target>
+
+    <!--
+        This runs the AspectJ compiler over the example application classes
+        using the pre-compiled VaadinConfigurableAspect aspect that makes
+        @Configurable classes get autowired using the Spring application context
+        associated with the current SpringContextApplication.
+
+        In this example, ConfigurableBean is the target for this behavior.
+    -->
+    <target name="weave" depends="javac, build.classpath, aspects.classpath">
+        <taskdef resource="org/aspectj/tools/ant/taskdefs/aspectjTaskdefs.properties">
+            <classpath refid="build.classpath"/>
+        </taskdef>
+        <path id="aspect.classpath">
+            <path refid="build.classpath"/>
+            <pathelement location="build/classes"/>
+        </path>
+        <iajc inpath="build/classes"
+              destDir="build/classes"
+              classpathRef="aspect.classpath"
+              source="1.6"
+              target="1.6"
+              verbose="true"
+              showWeaveInfo="true"
+              failonerror="true"
+              aspectPathRef="aspects.classpath"/>
+    </target>
+
+    <target name="build" depends="clean, war"/>
+
+    <target name="deploy" depends="war">
+        <copy todir="/srv/tomcat6/webapps" file="build/${ant.project.name}.war"/>
+    </target>
+
+</project>
