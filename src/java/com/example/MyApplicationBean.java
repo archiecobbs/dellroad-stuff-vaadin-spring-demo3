@@ -12,7 +12,6 @@ public class MyApplicationBean extends AbstractApplicationBean {
     protected ConfigurableBean configurableBean;
 
     public MyApplicationBean() {
-        this.log.info(this.getClass().getSimpleName() + " constructor invoked");
         this.log.info(this.getClass().getSimpleName() + " constructor invoking new ConfigurableBean()");
         this.configurableBean = new ConfigurableBean();     // the @Configurable aspect will autowire this configurableBean
     }

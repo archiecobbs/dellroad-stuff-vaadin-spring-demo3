@@ -21,6 +21,10 @@ public abstract class AbstractBean implements BeanFactoryAware, InitializingBean
 
     private BeanFactory beanFactory;
 
+    protected AbstractBean() {
+        this.log.info(this.getClass().getSimpleName() + " constructor invoked");
+    }
+
     @Override
     public void setBeanFactory(BeanFactory beanFactory) {
         this.log.info(this.getClass().getSimpleName() + ".setBeanFactory() invoked");
