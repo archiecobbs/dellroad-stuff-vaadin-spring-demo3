@@ -71,10 +71,10 @@
     <!--
         This runs the AspectJ compiler over the example application classes
         using the pre-compiled VaadinConfigurableAspect aspect that makes
-        @Configurable classes get autowired using the Spring application context
-        associated with the current SpringContextApplication.
+        @VaadinConfigurable classes get autowired using the Spring application
+        context associated with the current SpringContextApplication.
 
-        In this example, ConfigurableBean is the target for this behavior.
+        In this example, VaadinConfigurableBean is the target for this behavior.
     -->
     <target name="weave" depends="javac, build.classpath, aspects.classpath">
         <taskdef resource="org/aspectj/tools/ant/taskdefs/aspectjTaskdefs.properties">

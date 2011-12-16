@@ -8,6 +8,6 @@ import org.dellroad.stuff.vaadin.VaadinConfigurable;
  * and is autowired by the @{@link VaadinConfigurable} aspect.
  */
 @VaadinConfigurable
-public class ConfigurableBean extends AbstractApplicationBean {
+public class VaadinConfigurableBean extends AbstractApplicationBean {
 }
 

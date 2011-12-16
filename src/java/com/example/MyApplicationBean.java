@@ -9,21 +9,21 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 public class MyApplicationBean extends AbstractApplicationBean {
 
-    protected ConfigurableBean configurableBean;
+    protected VaadinConfigurableBean vaadinConfigurableBean;
 
     public MyApplicationBean() {
-        this.log.info(this.getClass().getSimpleName() + " constructor invoking new ConfigurableBean()");
-        this.configurableBean = new ConfigurableBean();     // the @Configurable aspect will autowire this configurableBean
+        this.log.info(this.getClass().getSimpleName() + " constructor invoking new VaadinConfigurableBean()");
+        this.vaadinConfigurableBean = new VaadinConfigurableBean();     // bean is @VaadinConfigurable, so the aspect will autowire it
     }
 
-    public ConfigurableBean getConfigurableBean() {
-        return this.configurableBean;
+    public VaadinConfigurableBean getVaadinConfigurableBean() {
+        return this.vaadinConfigurableBean;
     }
 
     @Override
     public String info() {
         return super.info()
-          + "\n  configurableBean=" + this.configurableBean;
+          + "\n  vaadinConfigurableBean=" + this.vaadinConfigurableBean;
     }
 }
 
