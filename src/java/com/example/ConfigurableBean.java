@@ -9,9 +9,5 @@ import org.springframework.beans.factory.annotation.Configurable;
  */
 @Configurable
 public class ConfigurableBean extends AbstractApplicationBean {
-
-    public ConfigurableBean() {
-        this.log.info(this.getClass().getSimpleName() + " constructor invoked");
-    }
 }
 
