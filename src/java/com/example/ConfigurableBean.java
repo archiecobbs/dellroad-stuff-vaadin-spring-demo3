@@ -1,13 +1,13 @@
 
 package com.example;
 
-import org.springframework.beans.factory.annotation.Configurable;
+import org.dellroad.stuff.vaadin.VaadinConfigurable;
 
 /**
  * Example of a Spring bean that lives in the per-Applicaton application context
  * and is autowired by the @{@link VaadinConfigurable} aspect.
  */
-@Configurable
+@VaadinConfigurable
 public class ConfigurableBean extends AbstractApplicationBean {
 }
 
