@@ -57,6 +57,9 @@
         <!-- Install required library JARs -->
         <mkdir dir="build/war/WEB-INF/lib"/>
         <dellroad:ivyput pattern="build/war/WEB-INF/lib/[module]-[revision]-[artifact].[ext]" conf="runtime"/>
+        <delete>
+            <fileset dir="build/war/WEB-INF/lib" includes="servletapi-*"/>
+        </delete>
 
         <!-- Extract vaadin static files -->
         <unzip dest="build/war">
