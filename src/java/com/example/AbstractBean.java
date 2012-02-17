@@ -10,12 +10,15 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ApplicationContextEvent;
 
 /**
  * Example of a Spring bean.
  */
 @SuppressWarnings("serial")
-public abstract class AbstractBean implements BeanFactoryAware, InitializingBean, DisposableBean, Serializable {
+public abstract class AbstractBean implements BeanFactoryAware, InitializingBean, DisposableBean,
+  Serializable, ApplicationListener<ApplicationContextEvent> {
 
     protected transient Logger log = Logger.getLogger(this.getClass());
 
@@ -41,10 +44,14 @@ public abstract class AbstractBean implements BeanFactoryAware, InitializingBean
         this.log.info(this.getClass().getSimpleName() + ".destroy() invoked");
     }
 
+    @Override
+    public void onApplicationEvent(ApplicationContextEvent event) {
+        this.log.info(this.getClass().getSimpleName() + ".onApplicationEvent(): got " + event);
+    }
+
     public String info() {
         return this.getClass().getSimpleName() + "@" + Integer.toHexString(this.hashCode())
-          + "\n  beanFactory="
-          + (this.beanFactory != null ? this.beanFactory.toString().replaceAll(",", ",\n    ") : null);
+          + "\n  beanFactory=" + (this.beanFactory != null ? this.beanFactory.toString().replaceAll(",", ",\n    ") : null);
     }
 
     private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {

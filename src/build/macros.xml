@@ -1,9 +1,10 @@
-<!-- $Id: macros.xml 309 2010-02-05 21:15:46Z archie.cobbs $ -->
+<!-- $Id: macros.xml 253 2012-01-27 19:59:11Z archie.cobbs $ -->
 
 <project name="build-macros"
   xmlns:antcontrib="urn:net.sf.antcontrib"
   xmlns:dellroad="urn:org.dellroad.ant"
   xmlns:ivy="urn:org.apache.ivy.ant"
+  xmlns:jibx="urn:net.sourceforge.jibx"
   xmlns:testng="urn:org.testng"
   xmlns:cobertura="urn:net.sf.cobertura"
   xmlns:findbugs="urn:edu.umd.cs.findbugs"
@@ -19,41 +20,82 @@
 -->
 
     <!-- Project should override this as necessary -->
-    <property name="javac.compiler.flags" value=""/>
+    <property name="javac.compiler.flags" value="-Xlint:all"/>
 
 <!--
-        ************* DETERMINE DIRECTORIES ****************
+        ************* DETERMINE BASE DIRECTORY ****************
 -->
 
-    <property name="build.macros.dir" location="${basedir}/src/build"/>
+    <dirname property="build.macros.dir" file="${ant.file.build-macros}"/>
+
+<!--
+        ************* MACRO FOR FINDING ANT LIBRARIES ****************
+-->
+
+    <!-- Set variables -->
+    <property name="data.dir" value="/usr/share"/>
+
+    <macrodef uri="urn:org.dellroad.ant" name="findantlib">
+        <attribute name="property" description="Name of property to set"/>
+        <attribute name="file" description="Name of library to look for"/>
+        <sequential>
+            <condition property="@{property}" value="${data.dir}/java/@{file}">
+                <and>
+                    <not>
+                        <isset property="@{property}"/>
+                    </not>
+                    <available file="${data.dir}/java/@{file}" type="file"/>
+                </and>
+            </condition>
+            <condition property="@{property}" value="${ant.library.dir}/@{file}">
+                <and>
+                    <not>
+                        <isset property="@{property}"/>
+                    </not>
+                    <available file="${ant.library.dir}/@{file}" type="file"/>
+                </and>
+            </condition>
+            <fail message="ERROR: can't find @{file}; please install in ${data.dir}/java or ${ant.library.dir}, or pass -D@{property}=... on the command line">
+                <condition>
+                    <not>
+                        <isset property="@{property}"/>
+                    </not>
+                </condition>
+            </fail>
+            <fail message="ERROR: invalid value for ${@{property}}">
+                <condition>
+                    <not>
+                        <available file="${@{property}}" type="file"/>
+                    </not>
+                </condition>
+            </fail>
+        </sequential>
+    </macrodef>
 
 <!--
         ************* DEFINE ANTCONTRIB AND IVY STUFF ****************
 -->
 
-    <!-- Find ivy.jar; use IVY_JAR environment variable if set -->
-    <condition property="ivy.jar" value="${env.IVY_JAR}">
-        <isset property="env.IVY_JAR"/>
-    </condition>
-    <condition property="ivy.jar" value="/usr/share/java/ivy.jar">
-        <not>
-            <isset property="env.IVY_JAR"/>
-        </not>
-    </condition>
-
+    <!-- Import ivy ant tasks -->
+    <dellroad:findantlib property="ivy.jar" file="ivy.jar"/>
     <taskdef uri="urn:org.apache.ivy.ant" resource="org/apache/ivy/ant/antlib.xml" classpath="${ivy.jar}"/>
 
-    <!-- Find ant-contrib.jar; use ANT_CONTRIB_JAR environment variable if set -->
-    <condition property="ant-contrib.jar" value="${env.ANT_CONTRIB_JAR}">
-        <isset property="env.ANT_CONTRIB_JAR"/>
-    </condition>
-    <condition property="ant-contrib.jar" value="/usr/share/java/ant-contrib.jar">
-        <not>
-            <isset property="env.ANT_CONTRIB_JAR"/>
-        </not>
-    </condition>
-
+    <!-- Import ant-contrib ant tasks -->
+    <dellroad:findantlib property="ant-contrib.jar" file="ant-contrib.jar"/>
     <taskdef uri="urn:net.sf.antcontrib" resource="net/sf/antcontrib/antcontrib.properties" classpath="${ant-contrib.jar}"/>
+
+    <!-- Get the sed(1) 'extended regular expression' flag for this O/S ('-E' for BSDish, '-r' for Linux) -->
+    <exec outputproperty="sed.extended.flag" executable="/bin/sh" logError="true" failonerror="true">
+        <arg value="-c"/>
+        <arg value="case `uname -s` in
+            Darwin|*BSD)
+                printf '%s' -E;
+                ;;
+            *)
+                printf '%s' -r;
+                ;;
+            esac"/>
+    </exec>
 
 <!--
         ************* IVY CONFIGURATION ****************
@@ -143,8 +185,58 @@
         </sequential>
     </macrodef>
 
+    <!--
+        Macro for retrieving artifacts by naming the module, etc. directly.
+        Does not require an ivy.xml file.
+    -->
+    <macrodef uri="urn:org.dellroad.ant" name="ivymodget">
+        <attribute name="pattern" description="Ivy pattern for artifact destination"/>
+        <attribute name="org" description="Module organisation name"/>
+        <attribute name="mod" description="Module module name"/>
+        <attribute name="rev" description="Module revision"/>
+        <attribute name="conf" default="default" description="Name of the ivy configuration to resolve"/>
+        <attribute name="type" default="jar" description="Type of artifact to resolve"/>
+        <attribute name="settingsRef" default="build-macros-ivy-settings" description="Reference to ivy settings"/>
+        <attribute name="transitive" default="true" description="Whether to resolve dependencies transitively"/>
+        <attribute name="log" default="download-only" description="When to log activity"/>
+        <sequential>
+            <ivy:resolve settingsRef="@{settingsRef}" organisation="@{org}" module="@{mod}" revision="@{rev}"
+              type="@{type}" inline="true" transitive="@{transitive}" conf="@{conf}" log="@{log}"/>
+            <ivy:retrieve settingsRef="@{settingsRef}" organisation="@{org}" module="@{mod}" revision="@{rev}"
+              type="@{type}" inline="true" transitive="@{transitive}" conf="@{conf}" log="@{log}" pattern="@{pattern}"/>
+        </sequential>
+    </macrodef>
+
+    <!--
+        Macro for generating a resolution report for a given configuration.
+        Requires a previous <ivy:resolve> operation.
+    -->
+    <macrodef uri="urn:org.dellroad.ant" name="ivyreport">
+        <attribute name="conf" default="default" description="Name of the ivy configuration to report"/>
+        <attribute name="destdir" default="build/reports/ivy" description="Directory in which to put generated reports"/>
+        <attribute name="settingsRef" default="build-macros-ivy-settings" description="Reference to ivy settings"/>
+        <sequential>
+            <mkdir dir="@{destdir}"/>
+            <ivy:report settingsRef="@{settingsRef}" conf="@{conf}" todir="@{destdir}" xml="true" outputpattern="[conf].[ext]"/>
+        </sequential>
+    </macrodef>
+
     <!-- Configure Ivy -->
-    <ivy:settings id="build-macros-ivy-settings" file="${basedir}/src/ivy/settings.xml"/>
+    <antcontrib:if>
+        <available file="${basedir}/src/ivy/settings.xml" type="file"/>
+        <antcontrib:then>
+            <ivy:settings id="build-macros-ivy-settings" file="${basedir}/src/ivy/settings.xml"/>
+        </antcontrib:then>
+        <antcontrib:elseif>
+            <available file="${data.dir}/ivy/settings.xml" type="file"/>
+            <antcontrib:then>
+                <ivy:settings id="build-macros-ivy-settings" file="${data.dir}/ivy/settings.xml"/>
+            </antcontrib:then>
+        </antcontrib:elseif>
+        <antcontrib:else>
+            <ivy:settings id="build-macros-ivy-settings" file="${build.macros.dir}/ivysettings.xml"/>
+        </antcontrib:else>
+    </antcontrib:if>
 
 <!--
         ************* MACROS AND PRESETDEFS ****************
@@ -152,14 +244,12 @@
 
     <!-- SVN revision -->
     <macrodef uri="urn:org.dellroad.ant" name="svnrevision">
-        <attribute name="property" description="Name of property to set"/>
+        <attribute name="property" default="svn.revision" description="Name of property to set"/>
         <attribute name="dir" default="${basedir}" description="Target checked-out SVN directory"/>
         <sequential>
-            <exec outputproperty="@{property}" executable="/bin/bash" logError="true" failonerror="true">
+            <exec outputproperty="@{property}" executable="/bin/sh" logError="true" failonerror="true">
                 <arg value="-c"/>
-                <arg value="( svn info @{dir} 2>/dev/null 
-                  | grep -E '^Last Changed Rev:' || echo '0' )
-                  | sed 's/^Last Changed Rev: //g'"/>
+                <arg value="svnversion -c @{dir} | sed ${sed.extended.flag} -e 's/^[0-9]+://g' -e 's/^-1M$/0/g'"/>
             </exec>
         </sequential>
     </macrodef>
@@ -170,27 +260,209 @@
         <sequential>
             <exec outputproperty="@{property}" executable="/bin/bash" logError="true" failonerror="true">
                 <arg value="-c"/>
-                <arg value="case `head -1 /etc/SuSE-release` in
+                <arg value="SREL=`head -1 /etc/SuSE-release`;
+                case &quot;$${SREL}&quot; in
                     SUSE\ LINUX\ Enterprise\ Server\ 9\ \(*)
-                        echo -n sles9
+                        echo -n sles9;
                         ;;
                     SUSE\ LINUX\ 10\.0\ \(*)
-                        echo -n suse10.0
+                        echo -n suse10.0;
                         ;;
                     SUSE\ LINUX\ 10\.1\ \(*)
-                        echo -n suse10.1
+                        echo -n suse10.1;
                         ;;
-                    openSUSE\ 10\.2\ \(*)
-                        echo -n suse10.2
-                        ;;
-                    openSUSE\ 10\.3\ \(*)
-                        echo -n suse10.3
+                    openSUSE\ [0-9][0-9]\.[0-9]\ \(*)
+                        LABEL=`echo &quot;$${SREL}&quot; | sed ${sed.extended.flag} 's|^openSUSE ([0-9]+\.[0-9]+) \(.*$$|\1|g'`;
+                        echo -n &quot;$${LABEL}&quot;;
                         ;;
                     *)
-                        echo -n unknown
+                        echo -n unknown;
                         ;;
                 esac"/>
             </exec>
+        </sequential>
+    </macrodef>
+
+    <!-- Check umask -->
+    <macrodef uri="urn:org.dellroad.ant" name="checkumask">
+        <attribute name="u" default="" description="Required user bits"/>
+        <attribute name="g" default="" description="Required group bits"/>
+        <attribute name="o" default="" description="Required other bits"/>
+        <sequential>
+            <exec outputproperty="@{property}" executable="/bin/bash" logError="true" failonerror="true">
+                <arg value="-c"/>
+                <arg value="
+                    set -e;
+                    bailout()
+                    {
+                        echo ERROR: $${1+&quot;$@&quot;} 1>&amp;2;
+                        exit 1;
+                    };
+                    PAT='^u=((r)?(w)?(x)?),g=((r)?(w)?(x)?),o=((r)?(w)?(x)?)$$';
+                    UBITS=`umask -S`;
+                    echo $${UBITS} | grep -qE &quot;$${PAT}&quot; || bailout failed to parse umask: `umask -S`;
+                    [ '@{u}' = '' -o `echo $${UBITS} | sed ${sed.extended.flag} 's|'&quot;$${PAT}&quot;'|\1|g'` = '@{u}' ]
+                      || bailout umask must have u='@{u}';
+                    [ '@{g}' = '' -o `echo $${UBITS} | sed ${sed.extended.flag} 's|'&quot;$${PAT}&quot;'|\5|g'` = '@{g}' ]
+                      || bailout umask must have g='@{g}';
+                    [ '@{o}' = '' -o `echo $${UBITS} | sed ${sed.extended.flag} 's|'&quot;$${PAT}&quot;'|\9|g'` = '@{o}' ]
+                      || bailout umask must have o='@{o}';
+                "/>
+            </exec>
+        </sequential>
+    </macrodef>
+
+    <!--
+        Schema Update Verification
+
+        Requirements:
+
+            - You must have a local MySQL instance running
+            - You must have run the "setupSchemacheck.sql" script on it
+
+        How this works:
+
+          - The local MySQL database as a user "schemacheck" (same p/w) with all priviledges on schemacheck\_%
+          - LiquiBase *should* automatically detect any schema differences and if so the build will fail
+          - In any case, the SQL exports are diff'd as well; some differences might not be material but do a double check
+    -->
+    <macrodef uri="urn:org.dellroad.ant" name="schemacheck">
+        <attribute name="original" description="Starting schema file"/>
+        <attribute name="changes" description="Update schema file"/>
+        <attribute name="expected" description="Expected result schema file"/>
+        <attribute name="classpathref" description="Classpath reference containing MySQL driver and Liquibase &gt; 2.0.0"/>
+        <sequential>
+
+            <!-- Reset -->
+            <delete dir="build/schemacheck"/>
+            <mkdir dir="build/schemacheck"/>
+
+            <!-- Create check databases -->
+            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://localhost/" classpathref="@{classpathref}"
+              userid="schemacheck" password="schemacheck" print="false" showheaders="false" showtrailers="false">
+                <transaction>
+                    DROP DATABASE IF EXISTS `schemacheck_1`;
+                    DROP DATABASE IF EXISTS `schemacheck_2`;
+                    CREATE DATABASE `schemacheck_1` DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
+                    CREATE DATABASE `schemacheck_2` DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
+                </transaction>
+            </sql>
+
+            <!-- Apply original schema plus all updates to database #1 -->
+            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://localhost/schemacheck_1?autoGenerateTestcaseScript=true"
+              classpathref="@{classpathref}" userid="schemacheck" password="schemacheck" print="false" showheaders="false"
+              showtrailers="false" autocommit="true">
+                <transaction src="@{original}"/>
+                <transaction src="@{changes}"/>
+            </sql>
+
+            <!-- Apply up-to-date schema to database #2 -->
+            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://localhost/schemacheck_2" classpathref="@{classpathref}"
+              userid="schemacheck" password="schemacheck" print="false" showheaders="false" showtrailers="false">
+                <transaction src="@{expected}"/>
+            </sql>
+
+            <!-- Dump schemas as flat files -->
+            <exec executable="mysqldump" output="build/schemacheck/1.sql" logError="true" failonerror="true">
+                <arg line="-u schemacheck --password=schemacheck --host=localhost --no-data schemacheck_1"/>
+            </exec>
+            <exec executable="mysqldump" output="build/schemacheck/2.sql" logError="true" failonerror="true">
+                <arg line="-u schemacheck --password=schemacheck --host=localhost --no-data schemacheck_2"/>
+            </exec>
+
+            <!-- Compute schema diff using liquibase -->
+            <taskdef resource="liquibasetasks.properties" classpathref="@{classpathref}"/>
+            <diffDatabase driver="com.mysql.jdbc.Driver" classpathref="@{classpathref}"
+              url="jdbc:mysql://localhost/schemacheck_1" username="schemacheck" password="schemacheck"
+              referenceUrl="jdbc:mysql://localhost/schemacheck_2" referenceUsername="schemacheck" referencePassword="schemacheck"
+              outputFile="build/schemacheck/diff.txt">
+            </diffDatabase>
+            <exec executable="sh" logError="true" failonerror="false">
+                <arg value="-c"/>
+                <arg value="
+                    cat build/schemacheck/diff.txt
+                       | grep -vE '^(Reference|Target) Database: '
+                       | grep -vE ': (EQUAL|NONE)$$'
+                       &gt; build/schemacheck/mismatch.txt;
+                    true;
+                "/>
+            </exec>
+
+            <!-- Drop databases -->
+            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://localhost/" classpathref="@{classpathref}"
+              userid="schemacheck" password="schemacheck" print="false" showheaders="false" showtrailers="false">
+                DROP DATABASE `schemacheck_1`;
+                DROP DATABASE `schemacheck_2`;
+            </sql>
+
+            <!-- Show liquibase schema differences -->
+            <concat>
+                <fileset file="build/schemacheck/mismatch.txt"/>
+            </concat>
+            <condition property="schemacheck.match">
+                <filesmatch file1="build/schemacheck/mismatch.txt" file2="/dev/null"/>
+            </condition>
+            <fail message="ERROR: schema mismatch (see above for details)" unless="schemacheck.match"/>
+
+            <!-- Show diff(1) of schema dumps -->
+            <exec executable="diff" logError="true" failonerror="false">
+                <arg value="-u"/>
+                <arg value="-I"/>
+                <arg value="^-- Host: localhost"/>
+                <arg value="-I"/>
+                <arg value="^-- Dump completed on"/>
+                <arg value="build/schemacheck/1.sql"/>
+                <arg value="build/schemacheck/2.sql"/>
+            </exec>
+        </sequential>
+    </macrodef>
+
+    <!--
+        JiBX binding for a single JiBX binding unit
+
+        Requires:
+            path "jibx-bind.classpath"
+    -->
+    <macrodef uri="urn:org.dellroad.ant" name="jibx-bind">
+        <attribute name="name" default="classes" description="Name of what we're binding"/>
+        <element name="classes" description="Path(s) for target classes to bind"/>
+        <element name="bindings" description="Fileset includes for binding files"/>
+        <sequential>
+            <taskdef uri="urn:net.sourceforge.jibx" name="bind"
+              classname="org.jibx.binding.ant.CompileTask" classpathref="jibx-bind.classpath"/>
+            <echo message="performing JiBX binding for @{name}"/>
+            <jibx:bind verbose="false" load="true">
+                <classpath>
+                    <classes/>
+                    <path refid="jibx-bind.classpath"/>
+                </classpath>
+                <bindingfileset dir="${basedir}">
+                    <bindings/>
+                </bindingfileset>
+            </jibx:bind> 
+        </sequential>
+    </macrodef>
+
+    <macrodef uri="urn:org.dellroad.ant" name="verifyclean">
+        <sequential>
+            <exec outputproperty="verifyclean.svn.version" executable="/bin/sh" logError="true" failonerror="true">
+                <arg value="-c"/>
+                <arg value="svnversion"/>
+            </exec>
+            <fail message="!&#10;&#10;
+                *** ERROR ***&#10;&#10;
+                The checked out code is not clean (SVN revision is `${verifyclean.svn.version}').&#10;&#10;
+                Please SVN update and/or commit first (or invoke ant with -Dpublish.dirty=true&#10;
+                if you really know what you're doing).&#10;">
+                <condition>
+                    <not>
+                        <or>
+                            <isset property="publish.dirty"/>
+                            <matches pattern="^[0-9.]+$" string="${verifyclean.svn.version}"/>
+                        </or>
+                    </not>
+                </condition>
+            </fail>
         </sequential>
     </macrodef>
 
@@ -199,34 +471,45 @@
         <attribute name="specfile" default="${ant.project.name}.spec" description="Name of RPM spec file"/>
         <attribute name="buildflag" default="-bb" description="rpmbuild(1) build flag"/>
         <attribute name="rpmflags" default="" description="Additional flags to rpmbuild"/>
-        <element name="source-preparation" optional="yes" implicit="yes"/>
+        <attribute name="fresh" default="true" description="Blow away old RPMs in dist/RPMS first"/>
+        <element name="source-preparation" optional="yes"/>
         <sequential>
+            <delete dir="build/rpm"/>
             <mkdir dir="build/rpm/BUILD"/>
             <mkdir dir="build/rpm/RPMS"/>
             <mkdir dir="build/rpm/SOURCES"/>
             <mkdir dir="build/rpm/SPECS"/>
             <mkdir dir="build/rpm/SRPMS"/>
-            <mkdir dir="dist"/>
+            <antcontrib:if>
+                <istrue value="@{fresh}"/>
+                <antcontrib:then>
+                    <delete dir="dist/RPMS"/>
+                </antcontrib:then>
+            </antcontrib:if>
+            <mkdir dir="dist/RPMS"/>
             <dellroad:svnrevision property="svn_revision"/>
-            <dellroad:suseversion property="suse_version"/>
-            <copy todir="build/rpm/SPECS" verbose="true">
-                <fileset dir="src/rpm">
-                    <include name="*.spec"/>
-                </fileset>
-            </copy>
+            <antcontrib:if>
+                <available file="src/rpm/@{specfile}" type="file"/>
+                <antcontrib:then>
+                    <copy file="src/rpm/@{specfile}" todir="build/rpm/SPECS" verbose="true"/>
+                </antcontrib:then>
+            </antcontrib:if>
             <antcontrib:if>
                 <available file="src/sources" type="dir"/>
                 <antcontrib:then>
                     <copy todir="build/rpm/SOURCES" verbose="true">
                         <fileset dir="src/sources">
                             <include name="**/*"/>
+                            <exclude name="**/.svn"/>
                         </fileset>
                     </copy>
                 </antcontrib:then>
             </antcontrib:if>
             <source-preparation/>
-            <rpm topdir="build/rpm" specfile="@{specfile}" command="@{buildflag}
-              --define 'svn_revision ${svn_revision}' --define 'suse_version ${suse_version}' @{rpmflags}"/>
+            <!-- _topdir definition is a workaround for a bug in ant 1.7.0 Rpm.java, line 123 (missing space) -->
+            <rpm topdir="build/rpm" specfile="@{specfile}" command="@{buildflag} --define '_topdir ${basedir}/build/rpm'
+              --define 'svn_revision ${svn_revision}' @{rpmflags}" rpmBuildCommand="rpmbuild"
+              failOnError="true"/>
             <copy todir="dist" overwrite="true" verbose="true">
                 <fileset dir="build/rpm">
                     <include name="RPMS/*/*.rpm"/>
@@ -235,24 +518,81 @@
         </sequential>
     </macrodef>
 
-    <!-- Ivy module build -->
-    <macrodef uri="urn:org.dellroad.ant" name="ivydist">
-        <attribute name="version" description="Ivy module version"/>
-        <attribute name="resolver" default="local-user" description="Name of ivy resolver with which to publish"/>
-        <attribute name="ivyfile" default="${basedir}/src/ivy/ivy.xml" description="Ivy file to publish"/>
-        <element name="module-preparation" implicit="true"/>
+    <!-- RPM publish -->
+    <macrodef uri="urn:org.dellroad.ant" name="rpmdist">
+        <attribute name="repodir" default="/opt/repo/devel" description="Base RPM repository directory"/>
+        <attribute name="susever" default="" description="Repository openSuSE version (default current)"/>
+        <attribute name="purge" default="false" description="Whether to remove all other revisions from repository"/>
         <sequential>
-            <dellroad:svnrevision property="svn_revision"/>
-            <delete dir="${basedir}/build/ivy"/>
-            <mkdir dir="${basedir}/build/ivy"/>
-            <copy file="@{ivyfile}" toFile="${basedir}/build/ivy/ivy.xml"/>
-            <module-preparation/>
-            <ivy:resolve settingsRef="build-macros-ivy-settings" file="${basedir}/build/ivy/ivy.xml"/>
-            <ivy:publish settingsRef="build-macros-ivy-settings" forcedeliver="true" validate="true"
-              overwrite="true" resolver="@{resolver}" srcivypattern="${basedir}/build/ivy/ivy.xml"
-              pubrevision="@{version}-${svn_revision}">
-                <artifacts pattern="${basedir}/build/ivy/[artifact].[ext]"/>
-            </ivy:publish>
+
+            <!-- Refuse to publish uncommitted code -->
+            <dellroad:verifyclean/>
+
+            <!-- Check umask -->
+            <dellroad:checkumask u="rwx" g="rwx" o="rx"/>
+
+            <!-- Get SuSE version -->
+            <antcontrib:if>
+                <equals arg1="@{susever}" arg2=""/>
+                <antcontrib:then>
+                    <dellroad:suseversion property="_rpmdist.@{susever}"/>
+                </antcontrib:then>
+                <antcontrib:else>
+                    <property name="_rpmdist.@{susever}" value="@{susever}"/>
+                </antcontrib:else>
+            </antcontrib:if>
+
+            <!-- Optionally remove older versions -->
+            <antcontrib:if>
+                <equals arg1="@{purge}" arg2="true"/>
+                <antcontrib:then>
+                    <echo message="Note: removing all other versions of these RPM(s) from the repository"/>
+                    <exec executable="/bin/bash" logError="true" failonerror="true">
+                        <arg value="-c"/>
+                        <arg value="
+                            set -e;
+                            find dist/RPMS -type f -name \*.rpm -print | while read FILE; do
+                                NAME=`rpm -qp --queryformat='%{name}\n' &quot;$${FILE}&quot;`;
+                                find @{repodir}/${_rpmdist.@{susever}} -type f -name &quot;$${NAME}-*.rpm&quot; -print0
+                                  | xargs -n 1 -0 -I@ sh -c 'test `rpm -qp --queryformat=&quot;%{name}&quot; &quot;@&quot;`
+                                    = &quot;'&quot;$${NAME}&quot;'&quot; &amp;&amp; echo &quot;@&quot;'
+                                  | xargs -n 1 -r -I@ sh -c 'echo Removing @; rm @';
+                            done;
+                        "/>
+                    </exec>
+                </antcontrib:then>
+            </antcontrib:if>
+
+            <!-- Copy new RPMs into the repository, but avoid mixing openSUSE versions -->
+            <exec executable="/bin/bash" logError="true" failonerror="true">
+                <arg value="-c"/>
+                <arg value="
+                    set -e;
+                    echo 'Publishing RPMs to @{repodir}/${_rpmdist.@{susever}}:';
+                    cd dist/RPMS;
+                    (
+                        find * -type f -name '*.rpm' -print | grep -vE '^.*\.suse[0-9.]+\..*$';
+                        find * -type f -name '*.rpm' -print | grep -E '^.*\.suse@{susever}\..*$';
+                    ) | cpio --quiet -pmudv '@{repodir}/${_rpmdist.@{susever}}' 2&gt;&amp;1
+                      | sed ${sed.extended.flag} 's|@{repodir}/${_rpmdist.@{susever}}/[^/]+/|    |g'
+                      | sort;
+                "/>
+            </exec>
+
+            <!-- Regenerate repository meta-data -->
+            <exec executable="createrepo" logError="true" failonerror="true">
+                <arg value="-q"/>
+                <arg value="-c"/>
+                <arg value="@{repodir}/${_rpmdist.@{susever}}/cache"/>
+                <arg value="--update"/>
+                <arg value="@{repodir}/${_rpmdist.@{susever}}"/>
+            </exec>
+
+            <!-- Work around this bug: https://bugzilla.novell.com/show_bug.cgi?id=659915 -->
+            <exec executable="chmod" logError="true" failonerror="true">
+                <arg value="g+w"/>
+                <arg value="@{repodir}/${_rpmdist.@{susever}}/repodata"/>
+            </exec>
         </sequential>
     </macrodef>
 
@@ -268,6 +608,8 @@
     <macrodef uri="urn:org.dellroad.ant" name="unit-tests">
         <attribute name="testngfile" default="${basedir}/src/test/testng.xml" description="TestNG control file"/>
         <element name="excludes" optional="yes"/>
+        <element name="addclasspath" optional="yes"/>
+        <element name="testng" optional="yes"/>
         <sequential>
 
             <!-- Define TestNG and Cobertura ant tasks -->
@@ -290,11 +632,12 @@
             </cobertura:cobertura-instrument>
 
             <!-- Run tests -->
-            <testng:testng sourcedir="${basedir}/src/test" outputDir="${basedir}/build/reports/tests" haltOnfailure="true">
+            <testng:testng outputDir="${basedir}/build/reports/tests" haltOnfailure="true">
                 <xmlfileset file="@{testngfile}"/>
                 <jvmarg value="-Djava.awt.headless=true"/>
                 <sysproperty key="net.sourceforge.cobertura.datafile" file="${basedir}/build/cobertura/cobertura.ser"/>
                 <classpath>
+                    <addclasspath/>
                     <pathelement location="${basedir}/build/cobertura/classes"/>
                     <pathelement location="${basedir}/build/classes"/>
                     <pathelement location="${basedir}/build/test"/>
@@ -303,6 +646,7 @@
                     <path refid="unittest.classpath"/>
                     <path refid="cobertura.classpath"/>
                 </classpath>
+                <testng/>
             </testng:testng>
 
             <!-- Generate coverage report -->
@@ -315,8 +659,8 @@
         <javac includeantruntime="no"
                compiler="modern"
                deprecation="true"
-               source="1.5"
-               target="1.5"
+               source="1.6"
+               target="1.6"
                debug="true">
             <compilerarg line="${javac.compiler.flags}"/>
         </javac>
@@ -332,8 +676,10 @@
     -->
     <macrodef uri="urn:org.dellroad.ant" name="javadoc">
         <attribute name="title" default="Java Class Library API"/>
+        <attribute name="overview" default="${basedir}/src/java/overview.html"/>
         <element name="links" optional="yes"/>
         <element name="excludes" optional="yes"/>
+        <element name="additional-classpath" optional="yes"/>
         <sequential>
             <antcontrib:outofdate>
                 <sourcefiles>
@@ -346,11 +692,12 @@
                 <sequential>
                     <delete dir="build/reports/javadoc"/>
                     <mkdir dir="build/reports/javadoc"/>
-                    <javadoc destdir="build/reports/javadoc" use="true"
+                    <javadoc destdir="build/reports/javadoc" use="true" overview="@{overview}"
                       source="1.5" breakiterator="yes" linksource="true"
                       windowtitle="@{title}" doctitle="@{title}" failonerror="true">
                         <classpath>
                             <path refid="javac.classpath"/>
+                            <additional-classpath/>
                         </classpath>
                         <packageset dir="src/java" defaultexcludes="yes">
                             <include name="**/*"/>
@@ -393,7 +740,7 @@
                         <excludes/>
                     </fileset>
                 </sourcefiles>
-                <targetfiles path="${dir}/report.xml"/>
+                <targetfiles path="@{dir}/report.xml"/>
                 <sequential>
 
                     <!-- Run checkstyle -->
@@ -419,10 +766,12 @@
                     </checkstyle:checkstyle>
 
                     <!-- Style XML report -->
+                <!--
                     <xslt in="@{dir}/report.xml" out="@{dir}/report.out" style="@{style}">
                         <param name="title" expression="@{title}"/>
                         <param name="filename.strip.prefix" expression="${basedir}/"/>
                     </xslt>
+                -->
 
                     <!-- Output textual version of report -->
                     <antcontrib:if>
@@ -536,38 +885,69 @@
 
     <!-- Find TestNG -->
     <target name="testng.classpath" unless="testng.classpath.resolved">
-        <dellroad:ivymodpath pathid="testng.classpath" rev="5.9+" org="org.testng" mod="testng"/>
+        <dellroad:ivymodpath pathid="testng.classpath" rev="6.+" org="org.testng" mod="testng"/>
+        <property name="testng.classpath.resolved" value="true"/>
     </target>
 
     <!-- Find Cobertura -->
     <target name="cobertura.classpath" unless="cobertura.classpath.resolved">
-        <dellroad:ivymodpath pathid="cobertura.classpath" rev="[1.9.3,2.0[" org="net.sourceforge.cobertura" mod="cobertura"/>
+        <dellroad:ivymodpath pathid="cobertura.classpath" rev="[1.9.4,2.0[" org="net.sourceforge.cobertura" mod="cobertura"/>
+        <property name="cobertura.classpath.resolved" value="true"/>
     </target>
 
     <!-- Find Checkstyle -->
     <target name="checkstyle.classpath" unless="checkstyle.classpath.resolved">
-        <dellroad:ivymodpath pathid="checkstyle.classpath" rev="[4.4,5.0[" org="com.puppycrawl" mod="checkstyle"/>
+        <dellroad:ivymodpath pathid="checkstyle.classpath" rev="5.4" org="com.puppycrawl" mod="checkstyle"/>
+        <property name="checkstyle.classpath.resolved" value="true"/>
     </target>
 
     <target name="javac" depends="javac-project, javac.classpath, testng.classpath" unless="javac.completed">
+
+        <!-- Main classes -->
         <antcontrib:if>
             <available file="src/java" type="dir"/>
             <antcontrib:then>
                 <mkdir dir="build/classes"/>
-                <dellroad:javac-default srcdir="src/java" destdir="build/classes">
-                    <classpath refid="javac.classpath"/>
-                </dellroad:javac-default>
+                <antcontrib:outofdate>
+                    <sourcefiles>
+                        <fileset dir="src/java">
+                            <include name="**/*.java"/>
+                            <exclude name="**/package-info.java"/>
+                        </fileset>
+                    </sourcefiles>
+                    <mapper type="glob" dir="src/java" from="*.java" to="build/classes/*.class"/>
+                    <sequential>
+                        <mkdir dir="build/classes"/>
+                        <dellroad:javac-default srcdir="src/java" destdir="build/classes">
+                            <classpath refid="javac.classpath"/>
+                            <compilerarg line="-proc:none"/>
+                        </dellroad:javac-default>
+                    </sequential>
+                </antcontrib:outofdate>
             </antcontrib:then>
         </antcontrib:if>
+
+        <!-- Test classes -->
         <antcontrib:if>
             <available file="src/test" type="dir"/>
             <antcontrib:then>
-                <mkdir dir="build/test"/>
-                <dellroad:javac-default srcdir="src/test" destdir="build/test">
-                    <classpath path="build/classes"/>
-                    <classpath refid="javac.classpath"/>
-                    <classpath refid="testng.classpath"/>
-                </dellroad:javac-default>
+                <antcontrib:outofdate>
+                    <sourcefiles>
+                        <fileset dir="src/test">
+                            <include name="**/*.java"/>
+                            <exclude name="**/package-info.java"/>
+                        </fileset>
+                    </sourcefiles>
+                    <mapper type="glob" dir="src/test" from="*.java" to="build/test/*.class"/>
+                    <sequential>
+                        <mkdir dir="build/test"/>
+                        <dellroad:javac-default srcdir="src/test" destdir="build/test">
+                            <classpath path="build/classes"/>
+                            <classpath refid="javac.classpath"/>
+                            <classpath refid="testng.classpath"/>
+                        </dellroad:javac-default>
+                    </sequential>
+                </antcontrib:outofdate>
             </antcontrib:then>
         </antcontrib:if>
         <property name="javac.completed" value="true"/>
@@ -607,19 +987,21 @@
                 <antcall target="tests" inheritRefs="true"/>
             </antcontrib:then>
         </antcontrib:if>
+<!--
         <antcontrib:if>
             <available file="src/java" type="dir"/>
             <antcontrib:then>
                 <antcall target="findbugs" inheritRefs="true"/>
             </antcontrib:then>
         </antcontrib:if>
+-->
     </target>
     <target name="reports-project"/>
 
     <target name="remove-unused-imports">
         <exec executable="/bin/bash" logError="true" failonerror="true">
             <arg value="-c"/>
-            <arg value=" 
+            <arg value="
                 if ! [ -f build/reports/checkstyle/report.xml ]; then
                     echo 'ERROR: you must run &#34;ant checks-checkstyle&#34; first!';
                     exit 1;
@@ -637,6 +1019,9 @@
             <arg value="build/reports/checkstyle/removeUnusedImports.sh"/>
         </exec>
     </target>
+
+    <!-- Application should override -->
+    <target name="javac.classpath"/>
 
 </project>
 
