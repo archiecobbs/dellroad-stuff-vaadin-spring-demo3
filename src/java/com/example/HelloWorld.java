@@ -62,7 +62,7 @@ public class HelloWorld extends SpringContextApplication implements BeanFactoryA
           + " will be invoked (same as for Spring's <code>@Configurable</code>).</li>"
           + "<li>The <code>self</code> bean is the <code>com.example.HelloWorld</code> Vaadin application instance itself,"
           + " which is configured by and autowired into the <code>HelloWorld.xml</code> application context using"
-          + " a <code>factory-method</code> bean definition invoking <code>HelloWorld.get()</code>.</li>"
+          + " a <code>factory-method</code> bean definition invoking <code>ContextApplication.get()</code>.</li>"
           + "<li>View the servlet container log file to see the order of bean initialization, etc. Try closing"
           + " and re-opening the browser Window, reloading the WAR, etc. to see bean and application context lifecycles.</li>"
           + "</ul>",
@@ -81,7 +81,7 @@ public class HelloWorld extends SpringContextApplication implements BeanFactoryA
             @Override
             public void buttonClick(Button.ClickEvent event) {
                 HelloWorld.this.log.info("closing HelloWorld application...");
-                HelloWorld.get().close();
+                ContextApplication.get().close();
             }
         }));
         mainWindow.addComponent(new Label("...or close the browser window/tab to close the application without reloading it"));
@@ -92,10 +92,6 @@ public class HelloWorld extends SpringContextApplication implements BeanFactoryA
             }
         });
         this.setMainWindow(mainWindow);
-    }
-
-    public static HelloWorld get() {
-        return ContextApplication.get(HelloWorld.class);
     }
 
     @Override

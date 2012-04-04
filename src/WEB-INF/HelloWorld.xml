@@ -13,10 +13,10 @@
     <context:annotation-config/>
 
     <!-- Expose and configure the Vaadin application bean itself (i.e., the HelloWorld bean) using this context -->
-    <bean id="helloWorld" class="com.example.HelloWorld" factory-method="get"
+    <bean id="helloWorld" class="org.dellroad.stuff.vaadin.ContextApplication" factory-method="get"
       p:someProperty="property value set via bean definition"/>
 
     <!-- Example of an application-specific bean whose lifecycle follows that of the Vaadin application -->
-    <bean class="com.example.MyApplicationBean" depends-on="helloWorld"/>
+    <bean class="com.example.MyApplicationBean"/>
 
 </beans>
