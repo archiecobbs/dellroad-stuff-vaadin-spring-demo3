@@ -84,13 +84,6 @@ public class HelloWorld extends SpringContextApplication implements BeanFactoryA
                 ContextApplication.get().close();
             }
         }));
-        mainWindow.addComponent(new Label("...or close the browser window/tab to close the application without reloading it"));
-        mainWindow.addListener(new Window.CloseListener() {
-            @Override
-            public void windowClose(Window.CloseEvent e) {
-                HelloWorld.this.close();
-            }
-        });
         this.setMainWindow(mainWindow);
     }
 
