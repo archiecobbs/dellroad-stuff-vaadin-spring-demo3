@@ -23,6 +23,10 @@
             <param-value>com.example.HelloWorld</param-value>
         </init-param>
         <init-param>
+            <param-name>root</param-name>
+            <param-value>com.example.HelloRoot</param-value>
+        </init-param>
+        <init-param>
             <param-name>productionMode</param-name>
             <param-value>false</param-value>
         </init-param>

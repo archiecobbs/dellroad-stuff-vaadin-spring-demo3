@@ -27,7 +27,7 @@
         <dependency force="true" org="org.apache.log4j" name="log4j" rev="1.2.15" conf="build,runtime->default"/>
         <dependency force="true" org="org.springframework" name="spring" rev="3.0+"
           conf="build,runtime->asm,aspects,cglib,context-support,expression,orm,web-servlet"/>
-        <dependency force="true" org="com.vaadin" name="vaadin" rev="6.7.1" conf="build,runtime->default"/>
+        <dependency force="true" org="com.vaadin" name="vaadin" rev="7.0.0.alpha2" conf="build,runtime->default"/>
         <dependency force="true" org="javax.servlet" name="servletapi" rev="3.0" conf="build->default"/>
         <dependency force="true" org="org.dellroad" name="dellroad-stuff" rev="1.0.349" conf="build,aspects,runtime->default"/>
         <dependency force="true" org="org.aspectj" name="aspectj" rev="1.6.10" conf="build->tools;aspects,runtime->default"/>
