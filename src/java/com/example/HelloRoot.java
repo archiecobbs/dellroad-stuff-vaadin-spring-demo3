@@ -8,8 +8,6 @@ import com.vaadin.ui.Root;
 import com.vaadin.ui.VerticalLayout;
 
 import org.apache.log4j.Logger;
-import org.dellroad.stuff.vaadin.ContextApplication;
-import org.dellroad.stuff.vaadin.SpringContextApplication;
 import org.dellroad.stuff.vaadin.VaadinConfigurable;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;

@@ -2,8 +2,7 @@
 package com.example;
 
 import org.apache.log4j.Logger;
-import org.dellroad.stuff.vaadin.ContextApplication;
-import org.dellroad.stuff.vaadin.SpringContextApplication;
+import org.dellroad.stuff.vaadin7.SpringContextApplication;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
