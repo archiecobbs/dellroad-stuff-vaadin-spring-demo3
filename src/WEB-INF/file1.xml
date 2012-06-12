@@ -16,7 +16,4 @@
     <bean id="helloWorld" class="org.dellroad.stuff.vaadin.ContextApplication" factory-method="get"
       p:someProperty="property value set via bean definition"/>
 
-    <!-- Example of an application-specific bean whose lifecycle follows that of the Vaadin application -->
-    <bean class="com.example.MyApplicationBean"/>
-
 </beans>

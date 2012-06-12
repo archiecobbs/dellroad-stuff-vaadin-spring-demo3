@@ -26,6 +26,13 @@
             <param-name>productionMode</param-name>
             <param-value>false</param-value>
         </init-param>
+        <init-param>
+            <param-name>vaadinContextConfigLocation</param-name>
+            <param-value>
+                /WEB-INF/file1.xml
+                /WEB-INF/file2.xml
+            </param-value>
+        </init-param>
     </servlet>
     <servlet-mapping>
         <servlet-name>hello</servlet-name>
