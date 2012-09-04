@@ -2,6 +2,7 @@
 package com.example;
 
 import com.vaadin.terminal.WrappedRequest;
+import com.vaadin.terminal.gwt.client.ui.label.ContentMode;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Root;
@@ -69,20 +70,20 @@ public class HelloRoot extends Root {
           + "<li>View the servlet container log file to see the order of bean initialization, etc. Try closing"
           + " and re-opening the browser Window, reloading the WAR, etc. to see bean and application context lifecycles.</li>"
           + "</ul>",
-          Label.ContentMode.XHTML));
-        layout.addComponent(new Label("----------", Label.ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("helloWorld: " + this.helloWorld.info(), Label.ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("----------", Label.ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("helloRoot: " + this.info(), Label.ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("----------", Label.ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("myBean: " + this.helloWorld.getMyBean().info(), Label.ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("----------", Label.ContentMode.PREFORMATTED));
+          ContentMode.XHTML));
+        layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("helloWorld: " + this.helloWorld.info(), ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("helloRoot: " + this.info(), ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("myBean: " + this.helloWorld.getMyBean().info(), ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
         layout.addComponent(new Label("myApplicationBean: " + this.helloWorld.getMyApplicationBean().info(),
-          Label.ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("----------", Label.ContentMode.PREFORMATTED));
+          ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
         layout.addComponent(new Label("vaadinConfigurableBean: " + this.vaadinConfigurableBean.info(),
-          Label.ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("----------", Label.ContentMode.PREFORMATTED));
+          ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
         layout.addComponent(new Button("Close Application", new Button.ClickListener() {
             @Override
             public void buttonClick(Button.ClickEvent event) {
