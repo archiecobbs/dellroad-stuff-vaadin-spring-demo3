@@ -12,7 +12,7 @@
     <!-- Activate Spring annotation support -->
     <context:annotation-config/>
 
-    <!-- Example bean -->
+    <!-- Example bean whose lifecycle matches the servlet lifecycle (i.e., broader than any particular Vaadin application) -->
     <bean class="com.example.MyBean"/>
 
 </beans>

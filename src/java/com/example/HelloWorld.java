@@ -2,7 +2,7 @@
 package com.example;
 
 import org.apache.log4j.Logger;
-import org.dellroad.stuff.vaadin7.SpringContextApplication;
+import org.dellroad.stuff.vaadin7.VaadinApplication;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
@@ -10,10 +10,11 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.context.ConfigurableWebApplicationContext;
 
-// Note how in Vaadin 7 this class contains no GUI-related code, only "application" related code
+// Note how in Vaadin 7 this class contains no GUI-related code, only "application" related code.
+// Also, use of an application-wide singleton like this is optional in Vaadin 7.
 
 @SuppressWarnings("serial")
-public class HelloWorld extends SpringContextApplication implements BeanFactoryAware, InitializingBean, DisposableBean {
+public class HelloWorld extends VaadinApplication implements BeanFactoryAware, InitializingBean, DisposableBean {
 
     protected transient Logger log = Logger.getLogger(this.getClass());
 
@@ -28,11 +29,6 @@ public class HelloWorld extends SpringContextApplication implements BeanFactoryA
 
     public HelloWorld() {
         this.log.info(this.getClass().getSimpleName() + " constructor invoked");
-    }
-
-    @Override
-    public void initSpringApplication(ConfigurableWebApplicationContext context) {
-        this.log.info("initializing HelloWorld application...");
     }
 
     public MyBean getMyBean() {
@@ -57,11 +53,6 @@ public class HelloWorld extends SpringContextApplication implements BeanFactoryA
     @Override
     public void destroy() {
         this.log.info(this.getClass().getSimpleName() + ".destroy() invoked");
-    }
-
-    @Override
-    public void destroySpringApplication() {
-        this.log.info(this.getClass().getSimpleName() + ".destroySpringApplication() invoked");
     }
 
     public String info() {

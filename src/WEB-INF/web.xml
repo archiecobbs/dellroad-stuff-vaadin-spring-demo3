@@ -16,15 +16,11 @@
 
     <!-- Vaadin servlet -->
     <servlet>
-        <servlet-name>hello</servlet-name>
-        <servlet-class>com.vaadin.terminal.gwt.server.ApplicationServlet</servlet-class>
+        <servlet-name>HelloWorld</servlet-name>
+        <servlet-class>org.dellroad.stuff.vaadin7.SpringVaadinServlet</servlet-class>
         <init-param>
-            <param-name>application</param-name>
-            <param-value>com.example.HelloWorld</param-value>
-        </init-param>
-        <init-param>
-            <param-name>root</param-name>
-            <param-value>com.example.HelloRoot</param-value>
+            <param-name>UI</param-name>
+            <param-value>com.example.HelloUI</param-value>
         </init-param>
         <init-param>
             <param-name>productionMode</param-name>
@@ -32,7 +28,7 @@
         </init-param>
     </servlet>
     <servlet-mapping>
-        <servlet-name>hello</servlet-name>
+        <servlet-name>HelloWorld</servlet-name>
         <url-pattern>/*</url-pattern>
     </servlet-mapping>
 

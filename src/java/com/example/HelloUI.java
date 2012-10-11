@@ -1,15 +1,15 @@
 
 package com.example;
 
-import com.vaadin.terminal.WrappedRequest;
-import com.vaadin.terminal.gwt.client.ui.label.ContentMode;
+import com.vaadin.server.VaadinRequest;
+import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Label;
-import com.vaadin.ui.Root;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
 import org.apache.log4j.Logger;
-import org.dellroad.stuff.vaadin.VaadinConfigurable;
+import org.dellroad.stuff.vaadin7.VaadinConfigurable;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
@@ -21,7 +21,7 @@ import org.springframework.web.context.ConfigurableWebApplicationContext;
 
 @SuppressWarnings("serial")
 @VaadinConfigurable
-public class HelloRoot extends Root {
+public class HelloUI extends UI {
 
     protected transient Logger log = Logger.getLogger(this.getClass());
 
@@ -30,14 +30,14 @@ public class HelloRoot extends Root {
 
     private VaadinConfigurableBean vaadinConfigurableBean;
 
-    public HelloRoot() {
-        super("Vaadin+Spring Demo #3");
+    public HelloUI() {
         this.log.info(this.getClass().getSimpleName() + " constructor invoked");
+        this.getPage().setTitle("Vaadin+Spring Demo #3");
     }
 
     @Override
-    public void init(WrappedRequest wrappedRequest) {
-        this.log.info("initializing HelloRoot root...");
+    public void init(VaadinRequest vaadinRequest) {
+        this.log.info("initializing HelloUI...");
 
         // Example of creating a @VaadinConfigurable bean
         this.log.info(this.getClass().getSimpleName() + " invoking new VaadinConfigurableBean()");
@@ -64,17 +64,17 @@ public class HelloRoot extends Root {
           + "<li>The <code>helloWorld</code> bean is the <code>com.example.HelloWorld</code> Vaadin application instance itself,"
           + " which is configured by and autowired into the <code>HelloWorld.xml</code> application context using"
           + " a <code>factory-method</code> bean definition invoking <code>ContextApplication.get()</code>.</li>"
-          + "<li>The <code>helloRoot</code> bean is the <code>com.example.HelloRoot</code> Vaadin Root instance,"
+          + "<li>The <code>helloUI</code> bean is the <code>com.example.HelloUI</code> Vaadin UI instance,"
           + " also configured and autowired into the <code>HelloWorld.xml</code> application via <code>@VaadinConfigurable</code>."
           + " Note how reloading the browser refreshes this bean, but not <code>helloWorld</code>.</li>"
           + "<li>View the servlet container log file to see the order of bean initialization, etc. Try closing"
           + " and re-opening the browser Window, reloading the WAR, etc. to see bean and application context lifecycles.</li>"
           + "</ul>",
-          ContentMode.XHTML));
+          ContentMode.HTML));
         layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
         layout.addComponent(new Label("helloWorld: " + this.helloWorld.info(), ContentMode.PREFORMATTED));
         layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
-        layout.addComponent(new Label("helloRoot: " + this.info(), ContentMode.PREFORMATTED));
+        layout.addComponent(new Label("helloUI: " + this.info(), ContentMode.PREFORMATTED));
         layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
         layout.addComponent(new Label("myBean: " + this.helloWorld.getMyBean().info(), ContentMode.PREFORMATTED));
         layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
@@ -87,8 +87,8 @@ public class HelloRoot extends Root {
         layout.addComponent(new Button("Close Application", new Button.ClickListener() {
             @Override
             public void buttonClick(Button.ClickEvent event) {
-                HelloRoot.this.log.info("closing HelloWorld application...");
-                HelloRoot.this.helloWorld.close();
+                HelloUI.this.log.info("closing HelloWorld application...");
+                HelloUI.this.helloWorld.close();
             }
         }));
         this.setContent(layout);
