@@ -23,11 +23,6 @@
         <property name="javac.classpath.resolved" value="true"/>
     </target>
 
-    <target name="aspects.classpath" unless="aspects.classpath.resolved">
-        <dellroad:ivypath pathid="aspects.classpath" conf="aspects"/>
-        <property name="aspects.classpath.resolved" value="true"/>
-    </target>
-
     <target name="runtime.classpath" unless="runtime.classpath.resolved">
         <dellroad:ivypath pathid="runtime.classpath" conf="runtime"/>
         <property name="runtime.classpath.resolved" value="true"/>
@@ -35,7 +30,7 @@
 
 <!-- Define targets -->
 
-    <target name="war" depends="javac, weave, runtime.classpath">
+    <target name="war" depends="javac, runtime.classpath">
         <delete dir="build/war"/>
 
         <!-- Install misc web files -->
@@ -44,6 +39,12 @@
         </copy>
         <copy todir="build/war/src">
             <fileset dir="." includes="build.xml src/**/*"/>
+        </copy>
+
+        <!-- Layout custom Vaadin theme -->
+        <mkdir dir="build/war/VAADIN/themes/mytheme"/>
+        <copy todir="build/war/VAADIN/themes/mytheme">
+            <fileset dir="src/theme"/>
         </copy>
 
         <!-- Install compiled Java classes and other resource files -->
@@ -71,37 +72,6 @@
         <war destfile="build/${ant.project.name}.war" basedir="build/war"/>
     </target>
 
-    <!--
-        This runs the AspectJ compiler over the example application classes
-        using the pre-compiled VaadinConfigurableAspect aspect that makes
-        @VaadinConfigurable classes get autowired using the Spring application
-        context associated with the current SpringContextApplication.
-
-        In this example, VaadinConfigurableBean is the target for this behavior.
-    -->
-    <target name="weave" depends="javac, build.classpath, aspects.classpath">
-        <taskdef resource="org/aspectj/tools/ant/taskdefs/aspectjTaskdefs.properties">
-            <classpath refid="build.classpath"/>
-        </taskdef>
-        <path id="aspect.classpath">
-            <path refid="build.classpath"/>
-            <pathelement location="build/classes"/>
-        </path>
-        <iajc inpath="build/classes"
-              destDir="build/classes"
-              classpathRef="aspect.classpath"
-              source="1.6"
-              target="1.6"
-              verbose="true"
-              showWeaveInfo="true"
-              failonerror="true"
-              aspectPathRef="aspects.classpath"/>
-    </target>
-
     <target name="build" depends="clean, war"/>
-
-    <target name="deploy" depends="war">
-        <copy todir="/srv/tomcat6/webapps" file="build/${ant.project.name}.war"/>
-    </target>
 
 </project>

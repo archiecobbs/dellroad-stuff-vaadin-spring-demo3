@@ -1,0 +1,5 @@
+/* $Id: styles.css 1645 2012-09-25 18:13:55Z archie $ */
+
+/* Base our theme on the Vaadin reindeer theme */
+@import "../reindeer/styles.css";
+

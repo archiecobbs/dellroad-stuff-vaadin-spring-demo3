@@ -1,9 +1,4 @@
-This is a demonstration of some of the Vaadin+Spring integration classes
-included in the dellroad-stuff Java library.
+Test case for Vaadin layout bug in 7.0.0.beta3
 
-URLs:
-
-    https://vaadin.com/directory#addon/spring-stuff
-    http://dellroad-stuff.googlecode.com/
-    http://dellroad-stuff.googlecode.com/svn/trunk/publish/reports/javadoc/index.html?org/dellroad/stuff/vaadin/package-summary.html
+https://vaadin.com/forum/-/message_boards/view_message/1913354
 
