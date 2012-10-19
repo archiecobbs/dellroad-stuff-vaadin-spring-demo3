@@ -1,10 +1,11 @@
 
 package com.example;
 
+import com.vaadin.server.ExternalResource;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.shared.ui.label.ContentMode;
-import com.vaadin.ui.Button;
 import com.vaadin.ui.Label;
+import com.vaadin.ui.Link;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
@@ -60,13 +61,12 @@ public class HelloUI extends UI {
           + " annotation (rather than explictly in <code>HelloWorld.xml</code> as is <code>myApplicationBean</code>)."
           + " However, even though this bean implements <code>DisposableBean</code> and"
           + " <code>ApplicationListener&lt;ApplicationContextEvent&gt;</code>, neither of the corresponding methods"
-          + " will be invoked (same as for Spring's <code>@Configurable</code>).</li>"
-          + "<li>The <code>helloWorld</code> bean is the <code>com.example.HelloWorld</code> Vaadin application instance itself,"
-          + " which is configured by and autowired into the <code>HelloWorld.xml</code> application context using"
-          + " a <code>factory-method</code> bean definition invoking <code>ContextApplication.get()</code>.</li>"
+          + " will be invoked (same as for Spring's <code>@Configurable</code>); you may see a resulting warning in the logs.</li>"
+          + "<li>The <code>helloWorld</code> bean is the <code>com.example.HelloWorld</code> is a Vaadin application singleton"
+          + " that is configured and autowired by the <code>HelloWorld.xml</code> context normally like any other Spring bean.</li>"
           + "<li>The <code>helloUI</code> bean is the <code>com.example.HelloUI</code> Vaadin UI instance,"
           + " also configured and autowired into the <code>HelloWorld.xml</code> application via <code>@VaadinConfigurable</code>."
-          + " Note how reloading the browser refreshes this bean, but not <code>helloWorld</code>.</li>"
+          + " Note how reloading the browser refreshes this bean, but not the <code>helloWorld</code> bean.</li>"
           + "<li>View the servlet container log file to see the order of bean initialization, etc. Try closing"
           + " and re-opening the browser Window, reloading the WAR, etc. to see bean and application context lifecycles.</li>"
           + "</ul>",
@@ -84,13 +84,8 @@ public class HelloUI extends UI {
         layout.addComponent(new Label("vaadinConfigurableBean: " + this.vaadinConfigurableBean.info(),
           ContentMode.PREFORMATTED));
         layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
-        layout.addComponent(new Button("Close Application", new Button.ClickListener() {
-            @Override
-            public void buttonClick(Button.ClickEvent event) {
-                HelloUI.this.log.info("closing HelloWorld application...");
-                HelloUI.this.helloWorld.close();
-            }
-        }));
+        layout.addComponent(new Link("Restart Application", new ExternalResource("?restartApplication")));
+        layout.addComponent(new Link("Close Application", new ExternalResource("?closeApplication")));
         this.setContent(layout);
     }
 
