@@ -14,6 +14,7 @@
 
     <configurations>
         <conf name="build" description="JARs required at build time"/>
+        <conf name="jibx-bind" extends="build" description="JARs required for JiBX binding"/>
         <conf name="runtime" description="JARs required at runtime"/>
         <conf name="aspects" description="JARs containing aspects"/>
     </configurations>
@@ -29,7 +30,9 @@
           conf="build,runtime->aspects,context-support,expression,orm,web-servlet"/>
         <dependency force="true" org="com.vaadin" name="vaadin" rev="7.1+" conf="build,runtime->default"/>
         <dependency force="true" org="javax.servlet" name="servletapi" rev="3.0" conf="build->default"/>
-        <dependency force="true" org="org.dellroad" name="dellroad-stuff" rev="1.0.704" conf="build,aspects,runtime->default"/>
+        <dependency force="true" org="javax.validation" name="validation-api" rev="1.0.0.GA" conf="build,runtime->default"/>
+        <dependency force="true" org="net.sourceforge.jibx" name="jibx" rev="1.2.3" conf="build->runtime-xpp3,extras;jibx-bind->bind"/>
+        <dependency force="true" org="org.dellroad" name="dellroad-stuff" rev="1.0.794" conf="build,aspects,runtime->default"/>
         <dependency force="true" org="org.aspectj" name="aspectj" rev="1.7.2" conf="build->tools;aspects,runtime->default"/>
     </dependencies>
 

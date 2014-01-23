@@ -15,4 +15,42 @@
     <!-- Example bean whose lifecycle matches the servlet lifecycle (i.e., broader than any particular Vaadin application) -->
     <bean class="com.example.MyBean"/>
 
+    <!-- Substitute ${properties.like.this} in this application context -->
+    <context:property-placeholder/>
+
+<!-- PERSISTENT OBJECT -->
+
+    <!-- XML (de)serializer for Data objects -->
+    <bean id="marshaller" class="com.example.WorkaroundJibxMarshaller" p:targetClass="com.example.Data" p:encoding="UTF-8" p:indent="4"/>
+
+    <!-- Data persistent object -->
+    <bean id="persistentObject" class="org.dellroad.stuff.pobj.PersistentObject"
+      init-method="start" destroy-method="stop" p:file="${java.io.tmpdir}/dellroad-stuff-demo-data.xml" p:checkInterval="1000"
+      p:delegate-ref="persistentObjectDelegate"/>
+
+    <!-- Schema updating persistent object delegate for config persistent object (with default value) -->
+    <bean id="persistentObjectDelegate" class="org.dellroad.stuff.pobj.SpringPersistentObjectSchemaUpdater"
+      p:defaultXML="classpath:com/example/defaultData.xml">
+        <constructor-arg>
+            <bean class="org.dellroad.stuff.pobj.SpringDelegate" p:marshaller-ref="marshaller" p:unmarshaller-ref="marshaller"/>
+        </constructor-arg>
+    </bean>
+
+    <!-- Configure @PersistentObjectTransactional annotation -->
+    <bean class="org.dellroad.stuff.pobj.PersistentObjectTransactionalAspect" factory-method="aspectOf">
+        <property name="persistentObjectTransactionManager">
+            <bean class="org.dellroad.stuff.pobj.PersistentObjectTransactionManager" p:persistentObject-ref="persistentObject"/>
+        </property>
+    </bean>
+
+<!-- SCHEMA UPDATES -->
+
+    <!-- This auto-configures each update with the actual XSLT file containing the transform -->
+    <bean class="org.dellroad.stuff.pobj.SpringXSLUpdateTransformConfigurer" p:prefix="classpath:com/example/" p:suffix=".xsl"/>
+
+    <!-- Config schema updates go here... -->
+    <bean id="schemaUpdateExample1" class="org.dellroad.stuff.pobj.SpringXSLPersistentObjectSchemaUpdate"/>
+    <bean id="schemaUpdateExample2" class="org.dellroad.stuff.pobj.SpringXSLPersistentObjectSchemaUpdate"
+      depends-on="schemaUpdateExample1"/>
+
 </beans>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<binding>
+    <include path="pet.xml"/>
+    <mapping abstract="true" type-name="data" class="com.example.Data">
+        <collection name="Pets" field="pets" create-type="java.util.ArrayList">
+            <structure name="Pet" map-as="pet"/>
+        </collection>
+    </mapping>
+</binding>

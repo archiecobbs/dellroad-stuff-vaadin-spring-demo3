@@ -23,6 +23,11 @@
         <property name="javac.classpath.resolved" value="true"/>
     </target>
 
+    <target name="jibx-bind.classpath" unless="jibx-bind.classpath.resolved">
+        <dellroad:ivypath pathid="jibx-bind.classpath" conf="jibx-bind"/>
+        <property name="jibx-bind.classpath.resolved" value="true"/>
+    </target>
+
     <target name="aspects.classpath" unless="aspects.classpath.resolved">
         <dellroad:ivypath pathid="aspects.classpath" conf="aspects"/>
         <property name="aspects.classpath.resolved" value="true"/>
@@ -35,7 +40,21 @@
 
 <!-- Define targets -->
 
-    <target name="war" depends="javac, weave, runtime.classpath">
+    <!-- JiBX bindings -->
+    <target name="jibx-bind" depends="javac, jibx-bind.classpath" unless="jibx-bind.completed">
+        <taskdef name="bind" classname="org.jibx.binding.ant.CompileTask" classpathref="jibx-bind.classpath"/>
+        <dellroad:jibx-bind name="XML encoded classes">
+            <classes>
+                <pathelement path="build/classes"/>
+            </classes>
+            <bindings>
+                <include name="src/java/**/binding.xml"/>
+            </bindings>
+        </dellroad:jibx-bind>
+        <property name="jibx-bind.completed" value="true"/>
+    </target>
+
+    <target name="war" depends="javac, jibx-bind, weave, runtime.classpath">
         <delete dir="build/war"/>
 
         <!-- Install misc web files -->
@@ -51,6 +70,8 @@
         <copy todir="build/war/WEB-INF/classes">
             <fileset dir="build/classes" includes="**/*"/>
             <fileset dir="src/xml" includes="log4j.xml"/>
+            <fileset dir="src/java" includes="com/example/defaultData.xml"/>
+            <fileset dir="src/java" includes="com/example/*.xsl"/>
             <fileset dir="src/properties" includes="logging.properties"/>
         </copy>
 

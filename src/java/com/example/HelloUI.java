@@ -1,9 +1,11 @@
 
 package com.example;
 
+import com.vaadin.annotations.Push;
 import com.vaadin.server.ExternalResource;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.shared.ui.label.ContentMode;
+import com.vaadin.ui.Button;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Link;
 import com.vaadin.ui.UI;
@@ -18,8 +20,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.context.ConfigurableWebApplicationContext;
 
-// In Vaadin 7, we used @VaadinConfigurable to have this class autowired
-
+@Push
 @SuppressWarnings("serial")
 @VaadinConfigurable
 public class HelloUI extends UI {
@@ -45,7 +46,7 @@ public class HelloUI extends UI {
         this.vaadinConfigurableBean = new VaadinConfigurableBean();  // bean is @VaadinConfigurable, so the aspect will autowire it
 
         // Build layout
-        VerticalLayout layout = new VerticalLayout();
+        final VerticalLayout layout = new VerticalLayout();
         layout.addComponent(new Label(
           "<b>Notes</b>"
           + "<ul>"
@@ -86,6 +87,13 @@ public class HelloUI extends UI {
         layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
         layout.addComponent(new Link("Restart Application", new ExternalResource("?restartApplication")));
         layout.addComponent(new Link("Close Application", new ExternalResource("?closeApplication")));
+        layout.addComponent(new Button("Show Persistent Object Demo", new Button.ClickListener() {
+            @Override
+            public void buttonClick(Button.ClickEvent event) {
+                layout.removeAllComponents();
+                layout.addComponent(new PetPanel());
+            }
+        }));
         this.setContent(layout);
     }
 

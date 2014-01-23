@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<binding package="com.example">
+
+    <!-- Only allow 'true' or 'false' for boolean values -->
+    <format type="boolean" deserializer="org.dellroad.stuff.jibx.ParseUtil.deserializeBooleanStrictly"/>
+
+    <!-- Strings: escape any XML-invalid characters (JiBX does not do this) -->
+    <format type="java.lang.String"
+      serializer="org.dellroad.stuff.jibx.ParseUtil.serializeString"
+      deserializer="org.dellroad.stuff.jibx.ParseUtil.deserializeString"/>
+
+    <!-- Dates -->
+    <format type="java.util.Date"
+      serializer="org.dellroad.stuff.jibx.ParseUtil.serializeDate"
+      deserializer="org.dellroad.stuff.jibx.ParseUtil.deserializeDate"/>
+
+    <!-- Define concrete mapping for top-level object (Data) -->
+    <include path="data.xml"/>
+    <mapping name="Data" class="com.example.Data">
+        <structure map-as="data"/>
+    </mapping>
+</binding>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<binding>
+    <mapping abstract="true" type-name="pet" class="com.example.Pet">
+        <value name="uuid" field="uuid" deserializer="org.dellroad.stuff.jibx.ParseUtil.deserializeUUID"/>
+        <value name="name" field="name"/>
+        <value name="type" field="type"/>
+        <value name="birthday" field="birthday" usage="optional"/>
+        <value name="friendly" field="friendly"/>
+    </mapping>
+</binding>
