@@ -1,4 +1,4 @@
-<!-- $Id: macros.xml 296 2012-02-22 17:51:13Z archie.cobbs $ -->
+<!-- $Id: macros.xml 843 2014-03-05 22:20:10Z archie.cobbs $ -->
 
 <project name="build-macros"
   xmlns:antcontrib="urn:net.sf.antcontrib"
@@ -19,8 +19,9 @@
 
 -->
 
-    <!-- Project should override this as necessary -->
+    <!-- Project should override these as necessary -->
     <property name="javac.compiler.flags" value="-Xlint:all"/>
+    <property name="java.source.version" value="1.7"/>
 
 <!--
         ************* DETERMINE BASE DIRECTORY ****************
@@ -249,7 +250,7 @@
         <sequential>
             <exec outputproperty="@{property}" executable="/bin/sh" logError="true" failonerror="true">
                 <arg value="-c"/>
-                <arg value="svnversion -c @{dir} | sed ${sed.extended.flag} -e 's/^[0-9]+://g' -e 's/^-1M$/0/g'"/>
+                <arg value="svnversion -c @{dir} | sed ${sed.extended.flag} -e 's/^[0-9]+://g' -e 's/^-1M$$/0/g' -e 's/^Un(versioned|committed).*$$/0/g'"/>
             </exec>
         </sequential>
     </macrodef>
@@ -262,32 +263,44 @@
         </sequential>
     </macrodef>
 
-    <!-- SuSE version -->
-    <macrodef uri="urn:org.dellroad.ant" name="suseversion">
+    <!-- OS name and release -->
+    <macrodef uri="urn:org.dellroad.ant" name="osname">
         <attribute name="property" description="Name of property to set"/>
         <sequential>
             <exec outputproperty="@{property}" executable="/bin/bash" logError="true" failonerror="true">
                 <arg value="-c"/>
-                <arg value="SREL=`head -1 /etc/SuSE-release`;
-                case &quot;$${SREL}&quot; in
-                    SUSE\ LINUX\ Enterprise\ Server\ 9\ \(*)
-                        echo -n sles9;
-                        ;;
-                    SUSE\ LINUX\ 10\.0\ \(*)
-                        echo -n suse10.0;
-                        ;;
-                    SUSE\ LINUX\ 10\.1\ \(*)
-                        echo -n suse10.1;
-                        ;;
-                    openSUSE\ [0-9][0-9]\.[0-9]\ \(*)
-                        LABEL=`echo &quot;$${SREL}&quot; | sed ${sed.extended.flag} 's|^openSUSE ([0-9]+\.[0-9]+) \(.*$$|\1|g'`;
-                        echo -n &quot;$${LABEL}&quot;;
-                        ;;
-                    *)
-                        echo -n unknown;
-                        ;;
-                esac"/>
+                <arg value="
+                    if ! [ -r /etc/os-release ]; then
+                        echo 'Error: /etc/os-release is not readable; setting $${@{property}} to unknown' 1&gt;&amp;2;
+                        echo 'unknown';
+                    fi;
+                    . /etc/os-release;
+                    echo &quot;$${ID}&quot;;
+                "/>
             </exec>
+        </sequential>
+    </macrodef>
+    <macrodef uri="urn:org.dellroad.ant" name="osrelease">
+        <attribute name="property" description="Name of property to set"/>
+        <sequential>
+            <exec outputproperty="@{property}" executable="/bin/bash" logError="true" failonerror="true">
+                <arg value="-c"/>
+                <arg value="
+                    if ! [ -r /etc/os-release ]; then
+                        echo 'Error: /etc/os-release is not readable; setting $${@{property}} to 0.0' 1&gt;&amp;2;
+                        echo '0.0';
+                    fi;
+                    . /etc/os-release;
+                    echo &quot;$${VERSION_ID}&quot;;
+                "/>
+            </exec>
+        </sequential>
+    </macrodef>
+
+    <!-- SuSE version (OBSOLETE - do not use) -->
+    <macrodef uri="urn:org.dellroad.ant" name="suseversion">
+        <sequential>
+            <fail message="&lt;dellroad:suseversion&gt; has been replaced by &lt;dellroad:osname&gt; and &lt;dellroad:osrelease&gt;"/>
         </sequential>
     </macrodef>
 
@@ -321,6 +334,52 @@
     </macrodef>
 
     <!--
+        JPA schema generation
+
+        Requires:
+            path "javac.classpath"
+            path "schema.classpath"
+    -->
+    <macrodef uri="urn:org.dellroad.ant" name="schemagen">
+        <attribute name="jpaxml" description="JPA persistence.xml file"/>
+        <attribute name="log4j" description="Log4J XML config file"/>
+        <attribute name="unit" description="JPA unit"/>
+        <attribute name="dir" description="Output directory"/>
+        <attribute name="file" description="Output filename"/>
+        <element name="fixups" optional="yes" description="Schema fixups (optional)"/>
+        <sequential>
+
+            <!-- Build JAR file for hibernatetool -->
+            <delete file="build/schemagen.jar"/>
+            <delete dir="build/schemagen"/>
+            <mkdir dir="build/schemagen/META-INF"/>
+            <copy file="@{log4j}" tofile="build/schemagen/log4j.xml"/>
+            <copy file="@{jpaxml}" todir="build/schemagen/META-INF"/>
+            <jar destfile="build/schemagen.jar">
+                <fileset dir="build/schemagen" includes="**/*"/>
+                <fileset dir="build/classes" includes="**/*.class"/>
+            </jar>
+            <delete dir="build/schemagen"/>
+
+            <!-- Run hibernatetool -->
+            <taskdef name="hibernatetool" classpathref="schema.classpath" classname="org.hibernate.tool.ant.HibernateToolTask"/>
+            <hibernatetool destdir="@{dir}">
+                <classpath>
+                    <fileset dir="build" includes="schemagen.jar"/>
+                    <path refid="javac.classpath"/>
+                </classpath>
+                <jpaconfiguration persistenceunit="@{unit}"/>
+                <hbm2ddl export="false" drop="false" create="true" update="false" format="true"
+                  outputfilename="@{file}" delimiter=";" haltonerror="true"/>
+            </hibernatetool>
+            <delete file="build/schemagen.jar"/>
+
+            <!-- Apply fixups -->
+            <fixups/>
+        </sequential>
+    </macrodef>
+
+    <!--
         Schema Update Verification
 
         Requirements:
@@ -339,6 +398,9 @@
         <attribute name="changes" description="Update schema file"/>
         <attribute name="expected" description="Expected result schema file"/>
         <attribute name="classpathref" description="Classpath reference containing MySQL driver and Liquibase &gt; 2.0.0"/>
+        <attribute name="dbhost" default="localhost" description="Database host"/>
+        <attribute name="dbuser" default="schemacheck" description="Database username"/>
+        <attribute name="dbpass" default="schemacheck" description="Database password"/>
         <sequential>
 
             <!-- Reset -->
@@ -346,8 +408,8 @@
             <mkdir dir="build/schemacheck"/>
 
             <!-- Create check databases -->
-            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://localhost/" classpathref="@{classpathref}"
-              userid="schemacheck" password="schemacheck" print="false" showheaders="false" showtrailers="false">
+            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://@{dbhost}/" classpathref="@{classpathref}"
+              userid="@{dbuser}" password="@{dbpass}" print="false" showheaders="false" showtrailers="false">
                 <transaction>
                     DROP DATABASE IF EXISTS `schemacheck_1`;
                     DROP DATABASE IF EXISTS `schemacheck_2`;
@@ -357,32 +419,32 @@
             </sql>
 
             <!-- Apply original schema plus all updates to database #1 -->
-            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://localhost/schemacheck_1?autoGenerateTestcaseScript=true"
-              classpathref="@{classpathref}" userid="schemacheck" password="schemacheck" print="false" showheaders="false"
+            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://@{dbhost}/schemacheck_1?autoGenerateTestcaseScript=true"
+              classpathref="@{classpathref}" userid="@{dbuser}" password="@{dbpass}" print="false" showheaders="false"
               showtrailers="false" autocommit="true">
                 <transaction src="@{original}"/>
                 <transaction src="@{changes}"/>
             </sql>
 
             <!-- Apply up-to-date schema to database #2 -->
-            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://localhost/schemacheck_2" classpathref="@{classpathref}"
-              userid="schemacheck" password="schemacheck" print="false" showheaders="false" showtrailers="false">
+            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://@{dbhost}/schemacheck_2" classpathref="@{classpathref}"
+              userid="@{dbuser}" password="@{dbpass}" print="false" showheaders="false" showtrailers="false">
                 <transaction src="@{expected}"/>
             </sql>
 
             <!-- Dump schemas as flat files -->
             <exec executable="mysqldump" output="build/schemacheck/1.sql" logError="true" failonerror="true">
-                <arg line="-u schemacheck --password=schemacheck --host=localhost --no-data schemacheck_1"/>
+                <arg line="-u @{dbuser} --password=@{dbpass} --host=@{dbhost} --no-data schemacheck_1"/>
             </exec>
             <exec executable="mysqldump" output="build/schemacheck/2.sql" logError="true" failonerror="true">
-                <arg line="-u schemacheck --password=schemacheck --host=localhost --no-data schemacheck_2"/>
+                <arg line="-u @{dbuser} --password=@{dbpass} --host=@{dbhost} --no-data schemacheck_2"/>
             </exec>
 
             <!-- Compute schema diff using liquibase -->
             <taskdef resource="liquibasetasks.properties" classpathref="@{classpathref}"/>
             <diffDatabase driver="com.mysql.jdbc.Driver" classpathref="@{classpathref}"
-              url="jdbc:mysql://localhost/schemacheck_1" username="schemacheck" password="schemacheck"
-              referenceUrl="jdbc:mysql://localhost/schemacheck_2" referenceUsername="schemacheck" referencePassword="schemacheck"
+              url="jdbc:mysql://@{dbhost}/schemacheck_1" username="@{dbuser}" password="@{dbpass}"
+              referenceUrl="jdbc:mysql://@{dbhost}/schemacheck_2" referenceUsername="@{dbuser}" referencePassword="@{dbpass}"
               outputFile="build/schemacheck/diff.txt">
             </diffDatabase>
             <exec executable="sh" logError="true" failonerror="false">
@@ -397,8 +459,8 @@
             </exec>
 
             <!-- Drop databases -->
-            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://localhost/" classpathref="@{classpathref}"
-              userid="schemacheck" password="schemacheck" print="false" showheaders="false" showtrailers="false">
+            <sql driver="com.mysql.jdbc.Driver" url="jdbc:mysql://@{dbhost}/" classpathref="@{classpathref}"
+              userid="@{dbuser}" password="@{dbpass}" print="false" showheaders="false" showtrailers="false">
                 DROP DATABASE `schemacheck_1`;
                 DROP DATABASE `schemacheck_2`;
             </sql>
@@ -416,7 +478,7 @@
             <exec executable="diff" logError="true" failonerror="false">
                 <arg value="-u"/>
                 <arg value="-I"/>
-                <arg value="^-- Host: localhost"/>
+                <arg value="^-- Host: @{dbhost}"/>
                 <arg value="-I"/>
                 <arg value="^-- Dump completed on"/>
                 <arg value="build/schemacheck/1.sql"/>
@@ -530,53 +592,79 @@
     <macrodef uri="urn:org.dellroad.ant" name="rpmdist">
         <attribute name="repohost" default="" description="Hostname of server where repository lives"/>
         <attribute name="repodir" default="/opt/repo/devel" description="Base RPM repository directory"/>
-        <attribute name="susever" default="" description="Repository openSuSE version (default current)"/>
+        <attribute name="osname" default="" description="Repository O/S name (default current)"/>
+        <attribute name="osrel" default="" description="Repository O/S release (default current)"/>
+        <attribute name="susever" default="" description="Repository openSuSE version (OBSOLETE - do not use)"/>
         <attribute name="purge" default="false" description="Whether to remove all other revisions from repository"/>
+        <attribute name="pattern" default="*.rpm" description="Filename glob pattern"/>
         <sequential>
 
             <!-- Refuse to publish uncommitted code -->
             <dellroad:verifyclean/>
 
-            <!-- Get SuSE version -->
-            <antcontrib:if>
-                <equals arg1="@{susever}" arg2=""/>
-                <antcontrib:then>
-                    <dellroad:suseversion property="_rpmdist.@{susever}"/>
-                </antcontrib:then>
-                <antcontrib:else>
-                    <property name="_rpmdist.@{susever}" value="@{susever}"/>
-                </antcontrib:else>
-            </antcontrib:if>
+            <!-- Check for obsolete usage -->
+            <fail message="ERROR: susever attribute has been replaced by by osname and osrel">
+                <condition>
+                    <length string="@{susever}" when="greater" length="0"/>
+                </condition>
+            </fail>
+
+            <!-- Get repository O/S name and version -->
+            <exec outputproperty="_rpmdist.osname.@{osname}" executable="/bin/sh" logError="true" failonerror="true">
+                <arg value="-c"/>
+                <arg value="
+                    if [ -n '@{osname}' ]; then
+                        echo '@{osname}';
+                    else
+                        . /etc/os-release;
+                        echo &quot;$${ID}&quot;;
+                    fi;
+                "/>
+            </exec>
+            <exec outputproperty="_rpmdist.osrel.@{osrel}" executable="/bin/sh" logError="true" failonerror="true">
+                <arg value="-c"/>
+                <arg value="
+                    if [ -n '@{osrel}' ]; then
+                        echo '@{osrel}';
+                    else
+                        . /etc/os-release;
+                        echo &quot;$${VERSION_ID}&quot;;
+                    fi;
+                "/>
+            </exec>
+
+            <!-- Combine O/S name and release -->
+            <property name="_rpmdist.osver.@{osname}@{osrel}" value="${_rpmdist.osname.@{osname}}${_rpmdist.osrel.@{osrel}}"/>
 
             <!-- Optionally remove older versions -->
             <antcontrib:if>
                 <equals arg1="@{purge}" arg2="true"/>
                 <antcontrib:then>
-                    <echo message="Note: removing old RPM(s) in @{repodir}/${_rpmdist.@{susever}}:"/>
+                    <echo message="Note: removing old RPM(s) in @{repodir}/${_rpmdist.osver.@{osname}@{osrel}}:"/>
                     <exec executable="/bin/bash" logError="true" failonerror="true">
                         <arg value="-c"/>
                         <arg value="
                             set -e;
 
-                            for FILE in `find dist/RPMS -type f -name \*.rpm -print`; do
+                            for FILE in `find dist/RPMS -type f -name '@{pattern}' -print`; do
                                 NAME=`rpm -qp --queryformat='%{name}\n' &quot;$${FILE}&quot;`;
                                 (
                                     if [ -z '@{repohost}' -o '@{repohost}' = `hostname` ]; then
-                                        find '@{repodir}/${_rpmdist.@{susever}}'
+                                        find '@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}'
                                             -type f -name &quot;$${NAME}-*.rpm&quot; -print0
                                           | xargs -n 1 -0 -I@ sh -c
                                             'test `rpm -qp --queryformat=&quot;%{name}&quot; &quot;@&quot;`
                                               = &quot;'&quot;$${NAME}&quot;'&quot; &amp;&amp; echo &quot;@&quot;'
                                           | xargs -n 1 -r -I@ sh -c 'echo @; rm @';
                                     else
-                                        ssh '@{repohost}' find \''@{repodir}/${_rpmdist.@{susever}}'\'
+                                        ssh '@{repohost}' find \''@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}'\'
                                             -type f -name \&quot;&quot;$${NAME}-*.rpm&quot;\&quot; -print0
                                           \| xargs -n 1 -0 -I@ sh -c
                                             \''test `rpm -qp --queryformat=&quot;%{name}&quot; &quot;@&quot;`
                                               = &quot;'\''&quot;'&quot;$${NAME}&quot;'&quot;'\''&quot; &amp;&amp; echo &quot;@&quot;'\'
                                           \| xargs -n 1 -r -I@ sh -c \''echo @; rm @'\';
                                     fi;
-                                ) | sed ${sed.extended.flag} 's|^.*/([^/]+)$|    \1|g';
+                                ) | sed ${sed.extended.flag} 's|^.*/([^/]+)$$|    \1|g';
                             done;
                         "/>
                     </exec>
@@ -590,20 +678,21 @@
                     set -e;
                     cd dist/RPMS;
                     (
-                        find * -type f -name '*.rpm' -print | grep -vE '^.*\.suse[0-9.]+\..*$';
-                        find * -type f -name '*.rpm' -print | grep -E '^.*\.suse@{susever}\..*$';
+                        set +e;
+                        find * -type f -name '@{pattern}' -print | grep -vE '^.*\.${_rpmdist.osname.@{osname}}[0-9][0-9.]*\..*$$';
+                        find * -type f -name '@{pattern}' -print | grep -E '^.*\.${_rpmdist.osver.@{osname}@{osrel}}\..*$$';
                     ) | (
                         if [ -z '@{repohost}' -o '@{repohost}' = `hostname` ]; then
-                            echo 'Publishing RPMs to @{repodir}/${_rpmdist.@{susever}}:';
+                            echo 'Publishing RPMs to @{repodir}/${_rpmdist.osver.@{osname}@{osrel}}:';
                             umask 002;
-                            cpio --quiet -pmudvl '@{repodir}/${_rpmdist.@{susever}}' 2&gt;&amp;1
+                            cpio --quiet -pmudvl '@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}' 2&gt;&amp;1
                               | grep -vE '^cpio: .* linked to'
-                              | sed ${sed.extended.flag} 's|@{repodir}/${_rpmdist.@{susever}}/[^/]+/|    |g'
+                              | sed ${sed.extended.flag} 's|@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}/[^/]+/|    |g'
                               | sort;
                         else
-                            echo 'Publishing RPMs to @{repodir}/${_rpmdist.@{susever}} on @{repohost}:';
+                            echo 'Publishing RPMs to @{repodir}/${_rpmdist.osver.@{osname}@{osrel}} on @{repohost}:';
                             cpio -o -H crc --quiet
-                              | ( ssh '@{repohost}' cd \''@{repodir}/${_rpmdist.@{susever}}'\'
+                              | ( ssh '@{repohost}' cd \''@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}'\'
                                 \&amp;\&amp; umask 002 \&amp;\&amp; cpio --quiet -imudv '2&gt;&amp;1' )
                               | sed ${sed.extended.flag} 's|^[^/]+/|    |g'
                               | sort;
@@ -620,13 +709,13 @@
                     if [ -z '@{repohost}' -o '@{repohost}' = `hostname` ]; then
                         echo 'Regenerating repository meta-data...';
                         umask 002;
-                        createrepo -q -c '@{repodir}/${_rpmdist.@{susever}}/cache'
-                          --update '@{repodir}/${_rpmdist.@{susever}}';
+                        createrepo -q -c '@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}/cache'
+                          --update '@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}';
                     else
                         echo 'Regenerating repository meta-data on @{repohost}...';
                         ssh '@{repohost}' umask 002
-                          \&amp;\&amp; createrepo -q -c \''@{repodir}/${_rpmdist.@{susever}}/cache'\'
-                          --update \''@{repodir}/${_rpmdist.@{susever}}'\';
+                          \&amp;\&amp; createrepo -q -c \''@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}/cache'\'
+                          --update \''@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}'\';
                     fi;
                 "/>
             </exec>
@@ -637,9 +726,60 @@
                 <arg value="
                     set -e;
                     if [ -z '@{repohost}' -o '@{repohost}' = `hostname` ]; then
-                        chmod g+w '@{repodir}/${_rpmdist.@{susever}}/repodata';
+                        chmod g+w '@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}/repodata';
                     else
-                        ssh '@{repohost}' chmod g+w \''@{repodir}/${_rpmdist.@{susever}}/repodata'\';
+                        ssh '@{repohost}' chmod g+w \''@{repodir}/${_rpmdist.osver.@{osname}@{osrel}}/repodata'\';
+                    fi;
+                "/>
+            </exec>
+        </sequential>
+    </macrodef>
+
+    <!-- RPM install (to local machine) -->
+    <macrodef uri="urn:org.dellroad.ant" name="rpminstall">
+        <attribute name="osname" default="" description="Repository O/S name (default current)"/>
+        <attribute name="osrel" default="" description="Repository O/S release (default current)"/>
+        <attribute name="susever" default="" description="Repository openSuSE version (OBSOLETE - do not use)"/>
+        <attribute name="force" default="false" description="Whether to force installation (rpm --force)"/>
+        <attribute name="pattern" default="*.rpm" description="Filename glob pattern"/>
+        <sequential>
+
+            <!-- Check for obsolete usage -->
+            <fail message="ERROR: susever attribute has been replaced by by osname and osrel">
+                <condition>
+                    <length string="@{susever}" when="greater" length="0"/>
+                </condition>
+            </fail>
+
+            <exec executable="/bin/bash" logError="true" failonerror="true">
+                <arg value="-c"/>
+                <arg value="
+                    set -e;
+                    FORCE_FLAG='';
+                    if [ '@{force}' = 'true' ]; then
+                        FORCE_FLAG='--force';
+                    fi;
+                    . /etc/os-release;
+                    if [ -n '@{osname}' ]; then
+                        OSNAME='@{osname}';
+                    else
+                        OSNAME=&quot;$${ID}&quot;;
+                    fi;
+                    if [ -n '@{osrel}' ]; then
+                        OSREL='@{osrel}';
+                    else
+                        OSREL=&quot;$${VERSION_ID}&quot;;
+                    fi;
+                    if [ &quot;$${ID}&quot; != &quot;$${OSNAME}&quot; -o &quot;$${VERSION_ID}&quot; != &quot;$${OSREL}&quot; ]; then
+                        echo &quot;Warning: not installing $${OSNAME}$${OSREL} RPMs on the $${ID}$${VERSION_ID} local machine&quot;;
+                    else
+                        echo &quot;Installing RPMs on the local machine ($${OSNAME}$${OSREL}):&quot;;
+                        cd dist/RPMS;
+                        (
+                            set +e;
+                            find * -type f -name '@{pattern}' -print | grep -vE '^.*\.'&quot;$${OSNAME}&quot;'[0-9][0-9.]*\..*$$';
+                            find * -type f -name '@{pattern}' -print | grep -E '^.*\.'&quot;$${OSNAME}$${OSREL}&quot;'\..*$$';
+                        ) | xargs -rt sudo rpm -Uvh $${FORCE_FLAG};
                     fi;
                 "/>
             </exec>
@@ -679,6 +819,9 @@
                     <include name="**/*.class"/>
                     <excludes/>
                 </fileset>
+                <auxClasspath>
+                    <addclasspath/>
+                </auxClasspath>
             </cobertura:cobertura-instrument>
 
             <!-- Run tests -->
@@ -709,8 +852,8 @@
         <javac includeantruntime="no"
                compiler="modern"
                deprecation="true"
-               source="1.6"
-               target="1.6"
+               source="${java.source.version}"
+               target="${java.source.version}"
                debug="true">
             <compilerarg line="${javac.compiler.flags}"/>
         </javac>
@@ -721,8 +864,6 @@
 
         Requires:
             path "javac.classpath"
-        Optional:
-            property "javac.compiler.flags"
     -->
     <macrodef uri="urn:org.dellroad.ant" name="javadoc">
         <attribute name="title" default="Java Class Library API"/>
@@ -743,11 +884,11 @@
                     <delete dir="build/reports/javadoc"/>
                     <mkdir dir="build/reports/javadoc"/>
                     <javadoc destdir="build/reports/javadoc" use="true" overview="@{overview}"
-                      source="1.5" breakiterator="yes" linksource="true"
+                      source="${java.source.version}" breakiterator="yes" linksource="true"
                       windowtitle="@{title}" doctitle="@{title}" failonerror="true">
                         <classpath>
-                            <path refid="javac.classpath"/>
                             <additional-classpath/>
+                            <path refid="javac.classpath"/>
                         </classpath>
                         <packageset dir="src/java" defaultexcludes="yes">
                             <include name="**/*"/>
@@ -755,6 +896,49 @@
                         </packageset>
                         <links/>
                     </javadoc>
+                </sequential>
+            </antcontrib:outofdate>
+        </sequential>
+    </macrodef>
+
+    <!--
+        Javadoc macro supporting AOP aspects
+
+        Requires:
+            path "javac.classpath"
+            AspectJ taskdefs defined
+    -->
+    <macrodef uri="urn:org.dellroad.ant" name="ajavadoc">
+        <attribute name="title" default="Java Class Library API"/>
+        <element name="links" optional="yes"/>
+        <element name="excludes" optional="yes"/>
+        <element name="additional-classpath" optional="yes"/>
+        <sequential>
+            <antcontrib:outofdate>
+                <sourcefiles>
+                    <fileset dir="src/java">
+                        <include name="**/*.java"/>
+                        <include name="**/*.aj"/>
+                        <excludes/>
+                    </fileset>
+                </sourcefiles>
+                <targetfiles path="build/reports/javadoc/index.html"/>
+                <sequential>
+                    <delete dir="build/reports/javadoc"/>
+                    <mkdir dir="build/reports/javadoc"/>
+                    <ajdoc destdir="build/reports/javadoc"
+                      source="${java.source.version}" windowtitle="@{title}" failonerror="true">
+                        <classpath>
+                            <additional-classpath/>
+                            <path refid="javac.classpath"/>
+                        </classpath>
+                        <fileset dir="src/java" defaultexcludes="yes">
+                            <include name="**/*.java"/>
+                            <include name="**/*.aj"/>
+                            <excludes/>
+                        </fileset>
+                        <links/>
+                    </ajdoc>
                 </sequential>
             </antcontrib:outofdate>
         </sequential>
@@ -923,13 +1107,36 @@
         </sequential>
     </macrodef>
 
+    <!--
+        JPA metamodel generation
+
+        Requires:
+            path "metamodel.classpath"
+    -->
+    <macrodef uri="urn:org.dellroad.ant" name="metamodel">
+        <attribute name="pxml" description="Location of persistence.xml"/>
+        <attribute name="pkgs" description="Java packages to compile" default=""/>
+        <sequential>
+            <delete dir="build/metamodel"/>
+            <mkdir dir="build/metamodel/src"/>
+            <mkdir dir="build/metamodel/pxml/META-INF"/>
+            <!-- <copy todir="build/metamodel/pxml/META-INF" file="@{pxml}"/> -->
+            <dellroad:javac-default srcdir="src/java" includes="@{pkgs}" destdir="build/metamodel/src">
+                <classpath refid="metamodel.classpath"/>
+                <classpath path="build/metamodel/pxml"/>
+                <compilerarg line="-proc:only"/>
+            </dellroad:javac-default>
+        </sequential>
+    </macrodef>
+
 <!--
         ************* PREDEFINED TARGETS ****************
 -->
 
-    <target name="clean" depends="clean-project">
+    <target name="clean" depends="clean-project" unless="clean.completed">
         <delete dir="build"/>
         <delete dir="dist"/>
+        <property name="clean.completed" value="true"/>
     </target>
     <target name="clean-project"/>
 
@@ -941,43 +1148,70 @@
 
     <!-- Find Cobertura -->
     <target name="cobertura.classpath" unless="cobertura.classpath.resolved">
-        <dellroad:ivymodpath pathid="cobertura.classpath" rev="[1.9.4,2.0[" org="net.sourceforge.cobertura" mod="cobertura"/>
+        <dellroad:ivymodpath pathid="cobertura.classpath" rev="2+" org="net.sourceforge.cobertura" mod="cobertura"/>
         <property name="cobertura.classpath.resolved" value="true"/>
     </target>
 
     <!-- Find Checkstyle -->
     <target name="checkstyle.classpath" unless="checkstyle.classpath.resolved">
-        <dellroad:ivymodpath pathid="checkstyle.classpath" rev="5.4" org="com.puppycrawl" mod="checkstyle"/>
+        <dellroad:ivymodpath pathid="checkstyle.classpath" rev="5.7" org="com.puppycrawl" mod="checkstyle"/>
         <property name="checkstyle.classpath.resolved" value="true"/>
     </target>
 
-    <target name="javac" depends="javac-project, javac.classpath, testng.classpath" unless="javac.completed">
-
-        <!-- Main classes -->
+    <!-- JAVAC: Main classes -->
+    <target name="javac-main" depends="javac.classpath" unless="javac-main.completed">
         <antcontrib:if>
             <available file="src/java" type="dir"/>
             <antcontrib:then>
                 <mkdir dir="build/classes"/>
-                <antcontrib:outofdate>
-                    <sourcefiles>
-                        <fileset dir="src/java">
-                            <include name="**/*.java"/>
-                            <exclude name="**/package-info.java"/>
-                        </fileset>
-                    </sourcefiles>
-                    <mapper type="glob" dir="src/java" from="*.java" to="build/classes/*.class"/>
-                    <sequential>
-                        <mkdir dir="build/classes"/>
-                        <dellroad:javac-default srcdir="src/java" destdir="build/classes">
-                            <classpath refid="javac.classpath"/>
-                            <compilerarg line="-proc:none"/>
-                        </dellroad:javac-default>
-                    </sequential>
-                </antcontrib:outofdate>
+                <antcontrib:if>
+                    <available file="build/metamodel/src" type="dir"/>
+                    <antcontrib:then>
+                        <antcontrib:outofdate>
+                            <sourcefiles>
+                                <fileset dir="src/java">
+                                    <include name="**/*.java"/>
+                                    <exclude name="**/package-info.java"/>
+                                </fileset>
+                                <fileset dir="build/metamodel/src" includes="**/*.java"/>
+                            </sourcefiles>
+                            <mapper type="glob" dir="src/java" from="*.java" to="build/classes/*.class"/>
+                            <mapper type="glob" dir="build/metamodel/src" from="*.java" to="build/classes/*.class"/>
+                            <sequential>
+                                <mkdir dir="build/classes"/>
+                                <dellroad:javac-default srcdir="src/java:build/metamodel/src" destdir="build/classes">
+                                    <classpath refid="javac.classpath"/>
+                                    <compilerarg line="-proc:none"/>
+                                </dellroad:javac-default>
+                            </sequential>
+                        </antcontrib:outofdate>
+                    </antcontrib:then>
+                    <antcontrib:else>
+                        <antcontrib:outofdate>
+                            <sourcefiles>
+                                <fileset dir="src/java">
+                                    <include name="**/*.java"/>
+                                    <exclude name="**/package-info.java"/>
+                                </fileset>
+                            </sourcefiles>
+                            <mapper type="glob" dir="src/java" from="*.java" to="build/classes/*.class"/>
+                            <sequential>
+                                <mkdir dir="build/classes"/>
+                                <dellroad:javac-default srcdir="src/java" destdir="build/classes">
+                                    <classpath refid="javac.classpath"/>
+                                    <compilerarg line="-proc:none"/>
+                                </dellroad:javac-default>
+                            </sequential>
+                        </antcontrib:outofdate>
+                    </antcontrib:else>
+                </antcontrib:if>
             </antcontrib:then>
         </antcontrib:if>
+        <property name="javac-main.completed" value="true"/>
+    </target>
 
-        <!-- Test classes -->
+    <!-- JAVAC: Test classes -->
+    <target name="javac-tests" depends="javac-project, javac.classpath, testng.classpath" unless="javac-tests.completed">
         <antcontrib:if>
             <available file="src/test" type="dir"/>
             <antcontrib:then>
@@ -1000,13 +1234,17 @@
                 </antcontrib:outofdate>
             </antcontrib:then>
         </antcontrib:if>
+        <property name="javac-tests.completed" value="true"/>
+    </target>
+
+    <target name="javac" depends="javac-project, javac-main, javac-tests" unless="javac.completed">
         <property name="javac.completed" value="true"/>
     </target>
+
     <target name="javac-project"/>
 
-    <target name="reports" depends="reports-project">
+    <target name="reports" depends="reports-project" unless="reports.completed">
         <dellroad:svnrevision property="svn_revision"/>
-        <dellroad:suseversion property="suse_version"/>
         <tstamp>
             <format property="current.time" pattern="EEEE dd MMM yyyy HH:mm:ss"/>
         </tstamp>
@@ -1015,7 +1253,6 @@
             <param name="basedir" expression="${basedir}"/>
             <param name="ant.project.name" expression="${ant.project.name}"/>
             <param name="svn.revision" expression="${svn_revision}"/>
-            <param name="suse.version" expression="${suse_version}"/>
             <param name="version" expression="${version}"/>
             <param name="timestamp" expression="${current.time}"/>
         </xslt>
@@ -1045,29 +1282,31 @@
             </antcontrib:then>
         </antcontrib:if>
 -->
+        <property name="reports.completed" value="true"/>
     </target>
     <target name="reports-project"/>
 
-    <target name="remove-unused-imports">
+    <target name="checkstyle-cleanup" unless="checkstyle-cleanup.completed">
         <exec executable="/bin/bash" logError="true" failonerror="true">
             <arg value="-c"/>
             <arg value="
                 if ! [ -f build/reports/checkstyle/report.xml ]; then
-                    echo 'ERROR: you must run &#34;ant checks-checkstyle&#34; first!';
+                    echo 'ERROR: you must run &#34;ant checkstyle&#34; first!';
                     exit 1;
                 fi;
-                if [ -f build/reports/checkstyle/removeUnusedImports.sh ]; then
-                    echo 'ERROR: only run &#34;ant remove-unused-imports&#34; once!';
+                if [ -f build/reports/checkstyle/cleanup.sh ]; then
+                    echo 'ERROR: only run &#34;ant checkstyle-cleanup&#34; once!';
                     exit 1;
                 fi;
             "/>
         </exec>
-        <xslt style="${build.macros.dir}/checkstyle/unused-imports.xsl"
-          in="build/reports/checkstyle/report.xml" out="build/reports/checkstyle/removeUnusedImports.sh"/>
+        <xslt style="${build.macros.dir}/checkstyle/cleanup.xsl"
+          in="build/reports/checkstyle/report.xml" out="build/reports/checkstyle/cleanup.sh"/>
         <exec executable="/bin/bash" logError="true" failonerror="true">
             <arg value="-x"/>
-            <arg value="build/reports/checkstyle/removeUnusedImports.sh"/>
+            <arg value="build/reports/checkstyle/cleanup.sh"/>
         </exec>
+        <property name="checkstyle-cleanup.completed" value="true"/>
     </target>
 
     <!-- Application should override -->
