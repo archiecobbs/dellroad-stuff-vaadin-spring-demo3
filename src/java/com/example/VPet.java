@@ -69,7 +69,7 @@ public class VPet extends Pet implements VObject<Pet> {
     }
 
     @FieldBuilder.AbstractField(caption = "Type:")
-    @FieldBuilder.EnumComboBox(enumClass = PetType.class)
+    @FieldBuilder.EnumComboBox
     @Override
     @ProvidesProperty
     public PetType getType() {
