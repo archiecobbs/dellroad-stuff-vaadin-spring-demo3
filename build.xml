@@ -23,9 +23,9 @@
         <property name="javac.classpath.resolved" value="true"/>
     </target>
 
-    <target name="jibx-bind.classpath" unless="jibx-bind.classpath.resolved">
-        <dellroad:ivypath pathid="jibx-bind.classpath" conf="jibx-bind"/>
-        <property name="jibx-bind.classpath.resolved" value="true"/>
+    <target name="unittest.classpath" unless="unittest.classpath.resolved">
+        <dellroad:ivypath pathid="unittest.classpath" conf="build"/>
+        <property name="unittest.classpath.resolved" value="true"/>
     </target>
 
     <target name="aspects.classpath" unless="aspects.classpath.resolved">
@@ -40,21 +40,7 @@
 
 <!-- Define targets -->
 
-    <!-- JiBX bindings -->
-    <target name="jibx-bind" depends="javac, jibx-bind.classpath" unless="jibx-bind.completed">
-        <taskdef name="bind" classname="org.jibx.binding.ant.CompileTask" classpathref="jibx-bind.classpath"/>
-        <dellroad:jibx-bind name="XML encoded classes">
-            <classes>
-                <pathelement path="build/classes"/>
-            </classes>
-            <bindings>
-                <include name="src/java/**/binding.xml"/>
-            </bindings>
-        </dellroad:jibx-bind>
-        <property name="jibx-bind.completed" value="true"/>
-    </target>
-
-    <target name="war" depends="javac, jibx-bind, weave, runtime.classpath">
+    <target name="war" depends="javac, weave, runtime.classpath">
         <delete dir="build/war"/>
 
         <!-- Install misc web files -->
@@ -117,6 +103,12 @@
               showWeaveInfo="true"
               failonerror="true"
               aspectPathRef="aspects.classpath"/>
+    </target>
+
+    <target name="checkstyle" description="Run checkstyle report"
+      depends="javac.classpath, unittest.classpath, checkstyle.classpath" unless="checkstyle.completed">
+        <dellroad:checkstyle maxWarnings="0" maxErrors="0"/>
+        <property name="checkstyle.completed" value="true"/>
     </target>
 
     <target name="build" depends="clean, war"/>

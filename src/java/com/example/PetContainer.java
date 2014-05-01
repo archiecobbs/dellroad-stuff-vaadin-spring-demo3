@@ -1,20 +1,30 @@
 
+/*
+ * Copyright (C) 2014 Archie L. Cobbs. All rights reserved.
+ *
+ * $Id$
+ */
+
 package com.example;
 
-import java.util.List;
-
-import javax.validation.constraints.NotNull;
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 
 @SuppressWarnings("serial")
-public class PetContainer extends AbstractDataContainer<Pet> {
+public class PetContainer extends AbstractDataContainer<VPet, PetChangeEvent> {
 
     public PetContainer() {
-        super(Pet.class);
+        super(VPet.class);
     }
 
-    @NotNull
-    public List<Pet> getContainerObjects(Data data) {
-        return data.getPets();
+    @Override
+    protected Iterable<VPet> getContainerObjects() {
+        return Iterables.transform(Pet.getAll(), new Function<Pet, VPet>() {
+            @Override
+            public VPet apply(Pet pet) {
+                return new VPet(pet);
+            }
+        });
     }
 }
 

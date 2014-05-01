@@ -1,4 +1,10 @@
 
+/*
+ * Copyright (C) 2014 Archie L. Cobbs. All rights reserved.
+ *
+ * $Id$
+ */
+
 package com.example;
 
 import com.vaadin.data.Container;
@@ -6,6 +12,7 @@ import com.vaadin.ui.Table;
 
 import java.util.ArrayList;
 
+import org.dellroad.stuff.vaadin7.Connectable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +47,10 @@ public abstract class AbstractTable<C extends Container & Connectable> extends T
         if (alignment != null)
             this.setColumnAlignment(property, alignment);
         this.columnIds.add(property);
+    }
+
+    public C getContainer() {
+        return this.container;
     }
 
 // Vaadin lifecycle

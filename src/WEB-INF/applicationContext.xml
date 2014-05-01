@@ -4,53 +4,57 @@
 <beans xmlns="http://www.springframework.org/schema/beans"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:context="http://www.springframework.org/schema/context"
+  xmlns:tx="http://www.springframework.org/schema/tx"
+  xmlns:jsimpledb="http://jsimpledb.googlecode.com/schema/jsimpledb"
   xmlns:p="http://www.springframework.org/schema/p"
+  xmlns:c="http://www.springframework.org/schema/c"
   xsi:schemaLocation="
-   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-   http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+   http://jsimpledb.googlecode.com/schema/jsimpledb http://jsimpledb.googlecode.com/svn/schemas/jsimpledb-1.0.xsd 
+   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+   http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+   http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
 
     <!-- Activate Spring annotation support -->
     <context:annotation-config/>
 
-    <!-- Example bean whose lifecycle matches the servlet lifecycle (i.e., broader than any particular Vaadin application) -->
-    <bean class="com.example.MyBean"/>
-
     <!-- Substitute ${properties.like.this} in this application context -->
     <context:property-placeholder/>
 
-<!-- PERSISTENT OBJECT -->
+    <!-- Activate @Configurable -->
+    <context:spring-configured/>
 
-    <!-- XML (de)serializer for Data objects -->
-    <bean id="marshaller" class="com.example.WorkaroundJibxMarshaller" p:targetClass="com.example.Data" p:encoding="UTF-8" p:indent="4"/>
+    <!-- Example bean whose lifecycle matches the servlet lifecycle (i.e., broader than any particular Vaadin application) -->
+    <bean class="com.example.MyBean"/>
 
-    <!-- Data persistent object -->
-    <bean id="persistentObject" class="org.dellroad.stuff.pobj.PersistentObject"
-      init-method="start" destroy-method="stop" p:file="${java.io.tmpdir}/dellroad-stuff-demo-data.xml" p:checkInterval="1000"
-      p:delegate-ref="persistentObjectDelegate"/>
+<!-- JSimpleDB database -->
 
-    <!-- Schema updating persistent object delegate for config persistent object (with default value) -->
-    <bean id="persistentObjectDelegate" class="org.dellroad.stuff.pobj.SpringPersistentObjectSchemaUpdater"
-      p:defaultXML="classpath:com/example/defaultData.xml">
-        <constructor-arg>
-            <bean class="org.dellroad.stuff.pobj.SpringDelegate" p:marshaller-ref="marshaller" p:unmarshaller-ref="marshaller"/>
-        </constructor-arg>
-    </bean>
+     <!-- Define the underlying key/value store -->
+     <bean id="kvstore" class="org.jsimpledb.kv.simple.XMLKVDatabase" c:file="${java.io.tmpdir}/dellroad-stuff-demo.xml"/>
 
-    <!-- Configure @PersistentObjectTransactional annotation -->
-    <bean class="org.dellroad.stuff.pobj.PersistentObjectTransactionalAspect" factory-method="aspectOf">
-        <property name="persistentObjectTransactionManager">
-            <bean class="org.dellroad.stuff.pobj.PersistentObjectTransactionManager" p:persistentObject-ref="persistentObject"/>
-        </property>
-    </bean>
+     <!-- Define the core Database layer on top of that -->
+     <bean id="database" class="org.jsimpledb.core.Database" p:KVDatabase-ref="kvstore"/>
 
-<!-- SCHEMA UPDATES -->
+     <!-- Define the Java model layer (JSimpleDB) using our annotated Java classes -->
+     <bean id="jsimpledb" class="org.jsimpledb.JSimpleDB" c:database-ref="database" c:version="1">
+         <constructor-arg>
+             <jsimpledb:scan-classpath base-package="com.example"/>
+         </constructor-arg>
+     </bean>
 
-    <!-- This auto-configures each update with the actual XSLT file containing the transform -->
-    <bean class="org.dellroad.stuff.pobj.SpringXSLUpdateTransformConfigurer" p:prefix="classpath:com/example/" p:suffix=".xsl"/>
+<!-- Spring transaction manager -->
 
-    <!-- Config schema updates go here... -->
-    <bean id="schemaUpdateExample1" class="org.dellroad.stuff.pobj.SpringXSLPersistentObjectSchemaUpdate"/>
-    <bean id="schemaUpdateExample2" class="org.dellroad.stuff.pobj.SpringXSLPersistentObjectSchemaUpdate"
-      depends-on="schemaUpdateExample1"/>
+    <!-- Create a Spring transaction manager -->
+    <bean id="transactionManager" class="org.jsimpledb.spring.JSimpleDBTransactionManager"
+      p:JSimpleDB-ref="jsimpledb"/>
+
+    <!-- Activate @Transactional -->
+    <tx:annotation-driven transaction-manager="transactionManager" mode="aspectj"/>
+
+<!-- Other application scope classes -->
+
+    <!-- Use this multicaster for all application events -->
+    <bean id="webApplicationMulticaster" class="org.springframework.context.event.SimpleApplicationEventMulticaster"/>
+
+    <bean class="com.example.ApplicationContextInfo" factory-method="getInstance"/>
 
 </beans>

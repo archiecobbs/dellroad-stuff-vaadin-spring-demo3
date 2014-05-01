@@ -1,110 +1,99 @@
 
+/*
+ * Copyright (C) 2014 Archie L. Cobbs. All rights reserved.
+ *
+ * $Id$
+ */
+
 package com.example;
 
-import com.vaadin.shared.ui.datefield.Resolution;
-import com.vaadin.shared.ui.label.ContentMode;
-import com.vaadin.ui.Label;
-
-import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.UUID;
+import java.util.NavigableSet;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 
-import org.dellroad.stuff.vaadin7.FieldBuilder;
-import org.dellroad.stuff.vaadin7.ProvidesProperty;
-import org.dellroad.stuff.vaadin7.ProvidesPropertySort;
-import org.dellroad.stuff.validation.Unique;
+import org.jsimpledb.JTransaction;
+import org.jsimpledb.annotation.JField;
+import org.jsimpledb.annotation.JSimpleClass;
+import org.jsimpledb.annotation.OnChange;
+import org.jsimpledb.annotation.OnCreate;
+import org.jsimpledb.annotation.OnDelete;
+import org.jsimpledb.change.FieldChange;
+import org.jsimpledb.core.ObjId;
 
-/*
+// JSimpleDB database object
+@JSimpleClass(storageId = 200)
+public abstract class Pet extends AbstractData {
 
-  Notes:
-
-  - The @ProvidesProperty and @ProvidesProperty annotations are used to build a Container
-    whose items reflect instances of this class; see PetContainer.
-
-  - The @FieldBuilder annotations is used to build Field objects for editing instances of this class; see PetPanel.
-
-*/
-
-public class Pet implements HasUUID {
-
-    private UUID uuid = UUID.randomUUID();
-    private String name;
-    private Date birthday;
-    private boolean friendly;
-    private PetType type;
-
-    @NotNull
-    @Override
-    @Unique(domain = "uuid")
-    public UUID getUUID() {
-        return this.uuid;
-    }
-    public void setUUID(UUID uuid) {
-        this.uuid = uuid;
-    }
-
-    @FieldBuilder.AbstractField(caption = "Name:", width = "200px")
-    @FieldBuilder.AbstractTextField(nullRepresentation = "", nullSettingAllowed = true)
+    @JField(storageId = 201)
     @NotNull(message = "Pet must have a name")
     @Pattern(regexp = "[A-Z].*", message = "Pet name must start with a capital letter")
-    @ProvidesProperty
-    public String getName() {
-        return this.name;
-    }
-    public void setName(String name) {
-        this.name = name;
-    }
+    public abstract String getName();
+    public abstract void setName(String name);
 
-    @FieldBuilder.AbstractField(caption = "Type:")
-    @FieldBuilder.EnumComboBox(enumClass = PetType.class)
+    @JField(storageId = 202)
     @NotNull(message = "Pet must have a type")
-    @ProvidesProperty
-    public PetType getType() {
-        return this.type;
-    }
-    public void setType(PetType type) {
-        this.type = type;
+    public abstract PetType getType();
+    public abstract void setType(PetType type);
+
+    @JField(storageId = 203)
+    public abstract Date getBirthday();
+    public abstract void setBirthday(Date birthday);
+
+    @JField(storageId = 204)
+    public abstract boolean isFriendly();
+    public abstract void setFriendly(boolean friendly);
+
+    public static Pet create() {
+        return JTransaction.getCurrent().create(Pet.class);
     }
 
-    @FieldBuilder.AbstractField(caption = "Birthday:")
-    @FieldBuilder.DateField(resolution = Resolution.DAY)
-    @ProvidesPropertySort
-    public Date getBirthday() {
-        return this.birthday;
-    }
-    public void setBirthday(Date birthday) {
-        this.birthday = birthday;
+    public static Pet get(ObjId id) {
+        return JTransaction.getCurrent().getJSimpleDB().getJObject(id, Pet.class);
     }
 
-    @FieldBuilder.AbstractField(caption = "Pet is friendly")
-    @FieldBuilder.CheckBox
-    public boolean isFriendly() {
-        return this.friendly;
-    }
-    public void setFriendly(boolean friendly) {
-        this.friendly = friendly;
+    public static NavigableSet<Pet> getAll() {
+        return JTransaction.getCurrent().getAll(Pet.class);
     }
 
-// Additional Vaadin property configuration
-
-    @ProvidesProperty("uuid")
-    public Label propertyUUID() {
-        return new Label("<code>" + this.uuid.toString() + "</code>", ContentMode.HTML);
+    public void copyFrom(Pet that) {
+        this.setName(that.getName());
+        this.setType(that.getType());
+        this.setBirthday(that.getBirthday());
+        this.setFriendly(that.isFriendly());
     }
 
-    @ProvidesProperty("birthday")
-    private String propertyBirthday() {
-        if (this.birthday == null)
-            return "Unknown";
-        return new SimpleDateFormat("yyyy-MM-dd").format(this.birthday);
+// Notify application after committed changes
+
+    @OnChange("name")
+    private void onNameChange(FieldChange<Pet> change) {
+        this.publishChangeOnCommit(new PetChangeEvent(new VPet(this), "name"));
     }
 
-    @ProvidesProperty("friendly")
-    private String propertyFriendly() {
-        return this.friendly ? "Yes" : "No";
+    @OnChange("type")
+    private void onTypeChange(FieldChange<Pet> change) {
+        this.publishChangeOnCommit(new PetChangeEvent(new VPet(this), "type"));
+    }
+
+    @OnChange("birthday")
+    private void onBirthdayChange(FieldChange<Pet> change) {
+        this.publishChangeOnCommit(new PetChangeEvent(new VPet(this), "birthday"));
+    }
+
+    @OnChange("friendly")
+    private void onFriendlyChange(FieldChange<Pet> change) {
+        this.publishChangeOnCommit(new PetChangeEvent(new VPet(this), "friendly"));
+    }
+
+    @OnCreate
+    private void onCreate() {
+        this.publishChangeOnCommit(new PetAddEvent(new VPet(this)));
+    }
+
+    @OnDelete
+    private void onDelete() {
+        this.publishChangeOnCommit(new PetDeleteEvent(new VPet(this)));
     }
 }
 

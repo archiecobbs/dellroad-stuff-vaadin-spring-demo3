@@ -1,4 +1,10 @@
 
+/*
+ * Copyright (C) 2014 Archie L. Cobbs. All rights reserved.
+ *
+ * $Id$
+ */
+
 package com.example;
 
 import com.vaadin.data.Property;
@@ -10,27 +16,33 @@ import com.vaadin.ui.Label;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.VerticalLayout;
 
-import java.util.UUID;
+import org.apache.log4j.Logger;
 
 /**
- * Support superclass for panels showing {@link Table}s backed by containters with UUID item IDs.
+ * Support superclass for panels showing {@link Table}s backed by containters.
  *
  * @param <T> table type
+ * @param <I> container item ID type
  */
 @SuppressWarnings("serial")
-public abstract class AbstractTablePanel<T extends Table> extends VerticalLayout {
+public abstract class AbstractTablePanel<T extends Table, I> extends VerticalLayout {
 
+    protected Logger log = Logger.getLogger(this.getClass());
     protected final T table;
+    protected final Class<I> itemIdType;
 
-    protected AbstractTablePanel(T table) {
-        this(table, 250);
+    protected AbstractTablePanel(T table, Class<I> itemIdType) {
+        this(table, itemIdType, 250);
     }
 
-    protected AbstractTablePanel(T table, int heightInPixels) {
+    protected AbstractTablePanel(T table, Class<I> itemIdType, int heightInPixels) {
 
         // Sanity check
         if (table == null)
             throw new IllegalArgumentException("null table");
+        if (itemIdType == null)
+            throw new IllegalArgumentException("null itemIdType");
+        this.itemIdType = itemIdType;
 
         // Initialize layout
         this.setMargin(true);
@@ -50,7 +62,7 @@ public abstract class AbstractTablePanel<T extends Table> extends VerticalLayout
         this.table.addValueChangeListener(new Property.ValueChangeListener() {
             @Override
             public void valueChange(Property.ValueChangeEvent event) {
-                AbstractTablePanel.this.updateSelection((UUID)event.getProperty().getValue());
+                AbstractTablePanel.this.updateSelection(AbstractTablePanel.this.itemIdType.cast(event.getProperty().getValue()));
             }
         });
     }
@@ -58,7 +70,7 @@ public abstract class AbstractTablePanel<T extends Table> extends VerticalLayout
     @Override
     public void attach() {
         super.attach();
-        this.updateSelection((UUID)this.table.getValue());
+        this.updateSelection(this.itemIdType.cast(this.table.getValue()));
     }
 
     protected void addButtonRow(Button... buttons) {
@@ -74,6 +86,6 @@ public abstract class AbstractTablePanel<T extends Table> extends VerticalLayout
         this.setComponentAlignment(buttonRow, Alignment.TOP_LEFT);
     }
 
-    protected abstract void updateSelection(UUID uuid);
+    protected abstract void updateSelection(I item);
 }
 

@@ -1,86 +1,102 @@
 
+/*
+ * Copyright (C) 2014 Archie L. Cobbs. All rights reserved.
+ *
+ * $Id$
+ */
+
 package com.example;
 
-import java.util.UUID;
-
 import org.dellroad.stuff.java.ErrorAction;
-import org.dellroad.stuff.pobj.PersistentObject;
-import org.dellroad.stuff.pobj.vaadin.VaadinPersistentObjectListener;
+import org.dellroad.stuff.vaadin7.SimpleItem;
 import org.dellroad.stuff.vaadin7.SimpleKeyedContainer;
+import org.dellroad.stuff.vaadin7.VaadinApplicationListener;
 import org.dellroad.stuff.vaadin7.VaadinConfigurable;
+import org.jsimpledb.core.ObjId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.event.ApplicationEventMulticaster;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Container where the underlying Java objects are generated from the {@link Data} persistent object.
+ * Container where the underlying Java objects are generated from data layer objects.
  *
- * @param <T> the type of the Java objects that back each item in the container
+ * @param <V> the type of the Java objects that back each item in the container
+ * @param <E> the type of {@link org.springframework.context.ApplicationEvent} that should trigger an update or reload
  */
 @SuppressWarnings("serial")
 @VaadinConfigurable(ifSessionNotLocked = ErrorAction.EXCEPTION)
-public abstract class AbstractDataContainer<T extends HasUUID> extends SimpleKeyedContainer<UUID, T> implements Connectable {
+public abstract class AbstractDataContainer<V extends VObject<? super V>, E extends AbstractChangeEvent<V>>
+  extends SimpleKeyedContainer<ObjId, V> {
+
+    protected final Logger log = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    private PersistentObject<Data> persistentObject;
+    @Qualifier("webApplicationMulticaster")                 // get the one from the main context, not the Vaadin context
+    private ApplicationEventMulticaster eventMulticaster;
 
-    private DataListener dataListener;
+    private DataChangeListener dataChangeListener;
 
     /**
      * Constructor.
      *
      * @param type type of the Java objects that back each item in the container
      */
-    protected AbstractDataContainer(Class<? super T> type) {
+    protected AbstractDataContainer(Class<? super V> type) {
         super(type);
     }
 
-    private void reload(Data data) {
-        this.load(this.getContainerObjects(data));
+    @Transactional(readOnly = true)
+    public void reload() {
+        this.load(this.getContainerObjects());
     }
-
-    protected abstract Iterable<? extends T> getContainerObjects(Data data);
-
-// SimpleKeyedContainer
 
     @Override
-    public UUID getKeyFor(T obj) {
-        return obj.getUUID();
+    public ObjId getKeyFor(V obj) {
+        return obj.getObjId();
     }
+
+    protected abstract Iterable<? extends V> getContainerObjects();
 
 // Connectable
 
     @Override
     public void connect() {
-
-        // Start listening for Data changes
-        this.dataListener = new DataListener();
-        this.dataListener.register();
-
-        // Load container
-        this.reload(this.persistentObject.getSharedRoot());
+        super.connect();
+        this.dataChangeListener = new DataChangeListener();
+        this.dataChangeListener.register();
+        this.reload();
     }
 
     @Override
     public void disconnect() {
-
-        // Stop listening for Data changes
-        if (this.dataListener != null) {
-            this.dataListener.unregister();
-            this.dataListener = null;
+        if (this.dataChangeListener != null) {
+            this.dataChangeListener.unregister();
+            this.dataChangeListener = null;
         }
+        super.disconnect();
     }
 
-// DataListener
+// DataChangeListener
 
-    private class DataListener extends VaadinPersistentObjectListener<Data> {
+    private class DataChangeListener extends VaadinApplicationListener<E> {
 
-        DataListener() {
-            super(AbstractDataContainer.this.persistentObject);
+        DataChangeListener() {
+            super(AbstractDataContainer.this.eventMulticaster);
+            this.setAsynchronous(true);
         }
 
         @Override
-        protected void handlePersistentObjectChange(Data oldRoot, Data newRoot, long version) {
-            if (newRoot != null)                // could do more fine-grained checking to determine if a reload is necessary
-                AbstractDataContainer.this.reload(newRoot);
+        protected void onApplicationEventInternal(E event) {
+            final ObjId id = event.getObject().getObjId();
+            final SimpleItem<V> item = (SimpleItem<V>)AbstractDataContainer.this.getItem(id);
+            if (item != null && !event.isStructural()) {
+                item.getObject().copyFrom(event.getObject());
+                item.fireValueChange();
+            } else
+                AbstractDataContainer.this.reload();
         }
     }
 }

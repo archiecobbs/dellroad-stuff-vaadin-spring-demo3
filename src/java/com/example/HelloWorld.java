@@ -1,4 +1,10 @@
 
+/*
+ * Copyright (C) 2014 Archie L. Cobbs. All rights reserved.
+ *
+ * $Id$
+ */
+
 package com.example;
 
 import org.apache.log4j.Logger;
@@ -8,7 +14,6 @@ import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.context.ConfigurableWebApplicationContext;
 
 // Note how in Vaadin 7 this class contains no GUI-related code, only "application" related code.
 // Also, use of an application-wide singleton like this is optional in Vaadin 7.

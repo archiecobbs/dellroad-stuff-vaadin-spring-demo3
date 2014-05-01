@@ -1,4 +1,10 @@
 
+/*
+ * Copyright (C) 2014 Archie L. Cobbs. All rights reserved.
+ *
+ * $Id$
+ */
+
 package com.example;
 
 import com.vaadin.annotations.Push;
@@ -13,12 +19,7 @@ import com.vaadin.ui.VerticalLayout;
 
 import org.apache.log4j.Logger;
 import org.dellroad.stuff.vaadin7.VaadinConfigurable;
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.context.ConfigurableWebApplicationContext;
 
 @Push
 @SuppressWarnings("serial")
@@ -87,7 +88,7 @@ public class HelloUI extends UI {
         layout.addComponent(new Label("----------", ContentMode.PREFORMATTED));
         layout.addComponent(new Link("Restart Application", new ExternalResource("?restartApplication")));
         layout.addComponent(new Link("Close Application", new ExternalResource("?closeApplication")));
-        layout.addComponent(new Button("Show Persistent Object Demo", new Button.ClickListener() {
+        layout.addComponent(new Button("Show JSimpleDB Demo", new Button.ClickListener() {
             @Override
             public void buttonClick(Button.ClickEvent event) {
                 layout.removeAllComponents();
