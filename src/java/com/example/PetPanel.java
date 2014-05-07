@@ -109,11 +109,11 @@ public class PetPanel extends AbstractTablePanel<PetTable, ObjId> {
         this.copyButton.setEnabled(true);
         this.deleteButton.setEnabled(true);
 
-        // Get VPet from Container
-        final VPet vpet = this.table.getContainer().getItem(id).getObject();
+        // Get Pet from Container
+        final Pet pet = this.table.getContainer().getItem(id).getObject();
 
         // Add edit form
-        this.replaceDisplayComponent(this.buildEditForm(vpet));
+        this.replaceDisplayComponent(this.buildEditForm(pet));
     }
 
     private void replaceDisplayComponent(Component component) {
@@ -124,7 +124,7 @@ public class PetPanel extends AbstractTablePanel<PetTable, ObjId> {
         this.setExpandRatio(this.displayComponent, 1);
     }
 
-    private Component buildEditForm(VPet pet) {
+    private Component buildEditForm(Pet pet) {
         return new PetEditForm(pet);
     }
 
@@ -182,19 +182,19 @@ public class PetPanel extends AbstractTablePanel<PetTable, ObjId> {
         VaadinUtil.invokeLater(VaadinUtil.getCurrentSession(), new Runnable() {
             @Override
             public void run() {
-                PetPanel.this.table.setValue(id);
+                PetPanel.this.table.select(id);
             }
         });
     }
 
     private class PetEditForm extends FormLayout {
 
-        private final VPet vpet;
-        private final BeanFieldGroup<VPet> fieldGroup;
+        private final Pet pet;
+        private final BeanFieldGroup<Pet> fieldGroup;
 
-        PetEditForm(VPet vpet) {
-            this.vpet = vpet;
-            this.fieldGroup = FieldBuilder.buildFieldGroup(this.vpet);
+        PetEditForm(Pet pet) {
+            this.pet = pet;
+            this.fieldGroup = FieldBuilder.buildFieldGroup(this.pet);
 
             // Layout fields
             this.addComponent(this.fieldGroup.getField("name"));
@@ -235,7 +235,7 @@ public class PetPanel extends AbstractTablePanel<PetTable, ObjId> {
             }
 
             // Update data source
-            this.fieldGroup.setItemDataSource(this.vpet);
+            this.fieldGroup.setItemDataSource(this.pet);
 
             // Optionally re-apply saved values
             if (overwrite) {
@@ -255,7 +255,7 @@ public class PetPanel extends AbstractTablePanel<PetTable, ObjId> {
         private void commitChanges() {
 
             // Apply field values
-            PetPanel.this.log.info("applying changes to pet " + this.vpet.getObjId());
+            PetPanel.this.log.info("applying changes to pet " + this.pet.getObjId());
             this.rebind(true);
             try {
                 this.fieldGroup.commit();
@@ -264,16 +264,16 @@ public class PetPanel extends AbstractTablePanel<PetTable, ObjId> {
                 return;
             }
 
-            // Find pet in database
-            final Pet pet = this.vpet.getPet();
-            if (pet == null) {
-                PetPanel.this.log.info("pet " + this.vpet.getObjId() + " was deleted before we could apply changes");
+            // Make sure pet still exists in database
+            final Pet dbPet = Pet.get(this.pet.getObjId());
+            if (dbPet == null) {
+                PetPanel.this.log.info("pet " + this.pet.getObjId() + " was deleted before we could apply changes");
                 Notification.show("Pet has been deleted!", Notification.Type.WARNING_MESSAGE);
                 return;
             }
 
-            // Update pet
-            pet.copyFrom(this.vpet);
+            // Update database pet from GUI pet
+            this.pet.copyIn();
 
             // Validate database
             try {

@@ -11,7 +11,7 @@ public class PetChangeEvent extends AbstractPetChangeEvent {
 
     private final String field;
 
-    public PetChangeEvent(VPet pet, String field) {
+    public PetChangeEvent(Pet pet, String field) {
         super(pet, false);
         if (field == null)
             throw new IllegalArgumentException("null field");

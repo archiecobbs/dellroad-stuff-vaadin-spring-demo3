@@ -12,6 +12,7 @@ import org.dellroad.stuff.vaadin7.SimpleItem;
 import org.dellroad.stuff.vaadin7.SimpleKeyedContainer;
 import org.dellroad.stuff.vaadin7.VaadinApplicationListener;
 import org.dellroad.stuff.vaadin7.VaadinConfigurable;
+import org.jsimpledb.JObject;
 import org.jsimpledb.core.ObjId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,13 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Container where the underlying Java objects are generated from data layer objects.
  *
- * @param <V> the type of the Java objects that back each item in the container
+ * @param <T> the type of the Java objects that back each item in the container
  * @param <E> the type of {@link org.springframework.context.ApplicationEvent} that should trigger an update or reload
  */
 @SuppressWarnings("serial")
 @VaadinConfigurable(ifSessionNotLocked = ErrorAction.EXCEPTION)
-public abstract class AbstractDataContainer<V extends VObject<? super V>, E extends AbstractChangeEvent<V>>
-  extends SimpleKeyedContainer<ObjId, V> {
+public abstract class AbstractDataContainer<T extends JObject, E extends AbstractChangeEvent<T>>
+  extends SimpleKeyedContainer<ObjId, T> {
 
     protected final Logger log = LoggerFactory.getLogger(this.getClass());
 
@@ -44,7 +45,7 @@ public abstract class AbstractDataContainer<V extends VObject<? super V>, E exte
      *
      * @param type type of the Java objects that back each item in the container
      */
-    protected AbstractDataContainer(Class<? super V> type) {
+    protected AbstractDataContainer(Class<? super T> type) {
         super(type);
     }
 
@@ -54,11 +55,12 @@ public abstract class AbstractDataContainer<V extends VObject<? super V>, E exte
     }
 
     @Override
-    public ObjId getKeyFor(V obj) {
+    public ObjId getKeyFor(T obj) {
         return obj.getObjId();
     }
 
-    protected abstract Iterable<? extends V> getContainerObjects();
+    // Invoked from within a transaction
+    protected abstract Iterable<? extends T> getContainerObjects();
 
 // Connectable
 
@@ -91,9 +93,9 @@ public abstract class AbstractDataContainer<V extends VObject<? super V>, E exte
         @Override
         protected void onApplicationEventInternal(E event) {
             final ObjId id = event.getObject().getObjId();
-            final SimpleItem<V> item = (SimpleItem<V>)AbstractDataContainer.this.getItem(id);
+            final SimpleItem<T> item = (SimpleItem<T>)AbstractDataContainer.this.getItem(id);
             if (item != null && !event.isStructural()) {
-                item.getObject().copyFrom(event.getObject());
+                event.getObject().copyTo(item.getObject().getTransaction());
                 item.fireValueChange();
             } else
                 AbstractDataContainer.this.reload();

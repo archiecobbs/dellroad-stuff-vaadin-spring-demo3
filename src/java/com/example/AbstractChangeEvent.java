@@ -8,14 +8,16 @@
 package com.example;
 
 import org.springframework.context.ApplicationEvent;
+import org.jsimpledb.JObject;
 
 // Superclass for change events sent from the data layer to the rest of the application
-public abstract class AbstractChangeEvent<T> extends ApplicationEvent {
+public abstract class AbstractChangeEvent<T extends JObject> extends ApplicationEvent {
 
     private final boolean structural;
 
+    // Must be invoked from within a transaction
     protected AbstractChangeEvent(T obj, boolean structural) {
-        super(obj);
+        super(obj.copyOut());
         this.structural = structural;
     }
 

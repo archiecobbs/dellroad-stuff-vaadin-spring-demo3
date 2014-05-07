@@ -18,33 +18,6 @@ public abstract class AbstractData implements JObject {
         JTransaction.getCurrent().getTransaction().addCallback(new PublishChangeCallback(event));
     }
 
-// JObject methods
-
-    @Override
-    public boolean delete() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean exists() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void revalidate() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean recreate() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void upgrade() {
-        throw new UnsupportedOperationException();
-    }
-
 // PublishChangeCallback - notifies the rest of the application when a data instance has been added/removed/changed
 
     private static class PublishChangeCallback extends Transaction.CallbackAdapter {

@@ -9,7 +9,7 @@ package com.example;
 
 public class PetDeleteEvent extends AbstractPetChangeEvent {
 
-    public PetDeleteEvent(VPet pet) {
+    public PetDeleteEvent(Pet pet) {
         super(pet, true);
     }
 }

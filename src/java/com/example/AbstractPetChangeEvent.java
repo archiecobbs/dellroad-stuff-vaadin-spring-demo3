@@ -7,9 +7,9 @@
 
 package com.example;
 
-public abstract class AbstractPetChangeEvent extends AbstractChangeEvent<VPet> {
+public abstract class AbstractPetChangeEvent extends AbstractChangeEvent<Pet> {
 
-    protected AbstractPetChangeEvent(VPet pet, boolean structural) {
+    protected AbstractPetChangeEvent(Pet pet, boolean structural) {
         super(pet, structural);
     }
 }
