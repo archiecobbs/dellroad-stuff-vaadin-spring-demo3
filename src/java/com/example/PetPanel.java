@@ -265,8 +265,7 @@ public class PetPanel extends AbstractTablePanel<PetTable, ObjId> {
             }
 
             // Make sure pet still exists in database
-            final Pet dbPet = Pet.get(this.pet.getObjId());
-            if (dbPet == null) {
+            if (Pet.get(this.pet.getObjId()) == null) {
                 PetPanel.this.log.info("pet " + this.pet.getObjId() + " was deleted before we could apply changes");
                 Notification.show("Pet has been deleted!", Notification.Type.WARNING_MESSAGE);
                 return;
