@@ -29,7 +29,7 @@
         <dependency force="true" org="org.apache.commons" name="commons-logging" rev="1.1+" conf="build,runtime->default"/>
         <dependency force="true" org="org.springframework" name="spring" rev="4.0+"
           conf="build,runtime->aspects,context-support,expression,orm,web-servlet"/>
-        <dependency force="true" org="com.vaadin" name="vaadin" rev="7.1+" conf="build,runtime->default"/>
+        <dependency force="true" org="com.vaadin" name="vaadin" rev="7.2+" conf="build,runtime->default"/>
         <dependency force="true" org="javax.servlet" name="servletapi" rev="3.0" conf="build->default"/>
         <dependency force="true" org="javax.validation" name="validation-api" rev="1.0.0.GA" conf="build,runtime->default"/>
         <dependency force="true" org="net.sourceforge.jibx" name="jibx" rev="1.2.5" conf="build->runtime-xpp3,extras;jibx-bind->bind"/>

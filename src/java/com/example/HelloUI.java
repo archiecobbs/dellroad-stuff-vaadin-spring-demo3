@@ -5,6 +5,7 @@ import com.vaadin.annotations.Push;
 import com.vaadin.server.ExternalResource;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.shared.ui.label.ContentMode;
+import com.vaadin.shared.ui.ui.Transport;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Link;
@@ -20,7 +21,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.context.ConfigurableWebApplicationContext;
 
-@Push
+@Push(transport = Transport.STREAMING)
 @SuppressWarnings("serial")
 @VaadinConfigurable
 public class HelloUI extends UI {
